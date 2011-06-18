@@ -35,7 +35,7 @@ interrupt.nmi int_nmi()
 
     // 341/3 cycles per line + change (8 cycles)
     lda #0x20               // 2
-    ldy #18+(8*8)          // 2
+    ldy #20+(8*20)          // 2
 waitloop:
         ldx #20             // 2 * lines
         do {
@@ -82,10 +82,15 @@ inline system_initialize_custom()
 
 interrupt.start main()
 {
+    system_initialize_custom()
+
+    ppu_ctl0_assign(#0)
+    ppu_ctl1_assign(#0)
+
     vblank_wait_full()
     vblank_wait()
 
-    vram_set_address_i(PAL_ADDRESS)
+    vram_set_address_i(PAL_0_ADDRESS)
 
     ldx #4-1
     do {
@@ -96,6 +101,7 @@ interrupt.start main()
 
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS)
 
+    // pattern 0
     // low bits
     ldx #8-1
     do {
@@ -112,6 +118,7 @@ interrupt.start main()
         dex
     } while (not minus)
 
+    // pattern 1
     // low bits
     ldx #8-1
     lda #0
@@ -128,6 +135,7 @@ interrupt.start main()
         dex
     } while (not minus)
 
+    // pattern 2
     // low bits
     ldx #8-1
     do {
@@ -145,7 +153,9 @@ interrupt.start main()
     } while (not minus)
 
     vram_set_address_i(PATTERN_TABLE_1_ADDRESS)
-    ldy #3
+
+    // pattern 0
+    ldy #4-1
     do {
     // low bits
     ldx #8-1
@@ -158,9 +168,8 @@ interrupt.start main()
 
     // high bits
     ldx #8-1
+    lda #0
     do {
-        lda Helium, X
-        eor #0xFF
         sta PPU.IO
         dex
     } while (not minus)
@@ -191,6 +200,17 @@ interrupt.start main()
         } while (not zero)
         dey
     } while (not zero)
+
+    vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS)
+
+    ldy #ATTRIBUTE_TABLE_SIZE
+    lda #0
+    do {
+        sta PPU.IO
+        dey
+    } while (not zero)
+
+    vram_clear_address()
 
     ppu_ctl0_assign(#CR_NMI)
     ppu_ctl1_assign(#CR_BACKVISIBLE|CR_SPRITESVISIBLE|CR_BACKNOCLIP)
