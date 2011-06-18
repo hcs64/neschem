@@ -3,6 +3,7 @@
 import png
 from sys import argv
 from io import open
+from array import array
 
 inpng_name = argv[1]
 outbin_name = argv[2]
@@ -16,10 +17,13 @@ if metadata['bitdepth'] != 1 or width != 8 or height != 8:
     print metadata
     exit(1)
 
-outbin = open(argv[2], "wb")
+outarr = array('B')
 for row in pixels:
     val = 0
     for pixel in row:
         val = (val << 1) | pixel
+    outarr.append(val)
 
-    outbin.write((val,))
+outarr.reverse()
+outbin = open(argv[2], "wb")
+outbin.write(outarr)
