@@ -1,8 +1,10 @@
-test.nes: test.as element_He.bin
+IMAGES=arrowdown.imgbin arrowup.imgbin element_He.imgbin
+
+test.nes: test.as tiles.as $(IMAGES)
 	neshla test.as
 
-element_He.bin: element_He.png
-	../img2bin/img2bin.py element_He.png element_He.bin
+%.imgbin: ../images/%.png
+	../img2bin/img2bin.py $< $@
 
 clean:
-	rm -f test.nes element_He.bin
+	rm -f test.nes $(IMAGES) log.txt

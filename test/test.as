@@ -12,6 +12,10 @@
 #ram.org 0x0
 shared byte _ppu_ctl0, _ppu_ctl1
 
+byte tile_buf_1[8]
+byte tile_buf_0[8]
+#ram.end
+
 #rom.bank BANK_MAIN_ENTRY
 #rom.org 0xC000
 
@@ -35,7 +39,7 @@ interrupt.nmi int_nmi()
 
     // 341/3 cycles per line + change (8 cycles)
     lda #0x20               // 2
-    ldy #20+(8*20)          // 2
+    ldy #20+(8*18)          // 2
 waitloop:
         ldx #20             // 2 * lines
         do {
@@ -80,7 +84,7 @@ inline system_initialize_custom()
     sta  joystick.cnt1
 }
 
-interrupt.start main()
+interrupt.start noreturn main()
 {
     system_initialize_custom()
 
@@ -90,6 +94,7 @@ interrupt.start main()
     vblank_wait_full()
     vblank_wait()
 
+    // Setup palette
     vram_set_address_i(PAL_0_ADDRESS)
 
     ldx #4-1
@@ -99,87 +104,51 @@ interrupt.start main()
         dex
     } while (not minus)
 
+    // Setup pattern table 0
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS)
 
     // pattern 0
-    // low bits
-    ldx #8-1
-    do {
-        lda Helium, X
-        sta PPU.IO
-        dex
-    } while (not minus)
-
-    // high bits
-    ldx #8-1
-    lda #0
-    do {
-        sta PPU.IO
-        dex
-    } while (not minus)
+    init_tile_blue(Tile_ElementHe)
+    write_tile()
 
     // pattern 1
-    // low bits
-    ldx #8-1
-    lda #0
-    do {
-        sta PPU.IO
-        dex
-    } while (not minus)
-
-    // high bits
-    ldx #8-1
-    do {
-        lda Helium, X
-        sta PPU.IO
-        dex
-    } while (not minus)
+    overlay_tile_red(Tile_ArrowUp)
+    write_tile()
 
     // pattern 2
-    // low bits
-    ldx #8-1
-    do {
-        lda Helium, X
-        sta PPU.IO
-        dex
-    } while (not minus)
+    overlay_tile_white(Tile_ArrowDown)
+    write_tile()
 
-    // high bits
-    ldx #8-1
-    do {
-        lda Helium, X
-        sta PPU.IO
-        dex
-    } while (not minus)
-
+    // Setup pattern table 1
     vram_set_address_i(PATTERN_TABLE_1_ADDRESS)
 
     // pattern 0
-    ldy #4-1
-    do {
-    // low bits
-    ldx #8-1
-    do {
-        lda Helium, X
-        eor #0xFF
-        sta PPU.IO
-        dex
-    } while (not minus)
+    init_tile_red(Tile_ElementHe)
+    write_tile()
 
-    // high bits
-    ldx #8-1
-    lda #0
-    do {
-        sta PPU.IO
-        dex
-    } while (not minus)
-    dey
-    } while (not minus)
+    // pattern 1
+    init_tile_blue(Tile_ElementHe)
+    write_tile()
 
+    // pattern 2
+    init_tile_white(Tile_ElementHe)
+    write_tile()
 
+    // Setup name table 0
     vram_set_address_i(NAME_TABLE_0_ADDRESS)
 
-    ldy #NAMETABLE_HEIGHT/2
+    ldy #NAMETABLE_HEIGHT/4
+    lda #0
+    do {
+        ldx #NAMETABLE_WIDTH
+        do {
+            sta PPU.IO
+            dex
+        } while (not zero)
+        dey
+    } while (not zero)
+
+    ldy #NAMETABLE_HEIGHT/4
     lda #1
     do {
         ldx #NAMETABLE_WIDTH
@@ -190,7 +159,7 @@ interrupt.start main()
         dey
     } while (not zero)
 
-    ldy #NAMETABLE_HEIGHT/2
+    ldy #NAMETABLE_HEIGHT/4
     lda #2
     do {
         ldx #NAMETABLE_WIDTH
@@ -201,6 +170,7 @@ interrupt.start main()
         dey
     } while (not zero)
 
+    // setup attribute table 0
     vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS)
 
     ldy #ATTRIBUTE_TABLE_SIZE
@@ -217,11 +187,11 @@ interrupt.start main()
 
     enable_interrupts()
 
-    do {
-    } while (true)
+    forever {}
 }
 
-// backwards!
-byte pal[] = {0x12, 0x15, 0x20, 0x10}
-Helium:
-#incbin "element_He.bin"
+byte pal[4] = {0x20, // 11: white
+               0x12, // 10: blue
+               0x16, // 01: red
+               0x10} // 00: gray (bg)
+#include "tiles.as"
