@@ -39,7 +39,7 @@ interrupt.nmi int_nmi()
 
     // 341/3 cycles per line + change (8 cycles)
     lda #0x20               // 2
-    ldy #20+(8*18)          // 2
+    ldy #20+(8*10)          // 2
 waitloop:
         ldx #20             // 2 * lines
         do {
@@ -109,35 +109,79 @@ interrupt.start noreturn main()
 
     // pattern 0
     init_tile_blue(Tile_ElementHe)
-    write_tile()
+    write_tile_buf()
 
     // pattern 1
     overlay_tile_red(Tile_ArrowUp)
-    write_tile()
+    write_tile_buf()
 
     // pattern 2
     overlay_tile_white(Tile_ArrowDown)
-    write_tile()
+    write_tile_buf()
+
+    vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(96*16))
+
+    // pattern 96
+    write_tile_white(Tile_CmdAlpha)
+
+    vram_set_address_i(PATTERN_TABLE_0_ADDRESS+((96+(2*20)+2)*16))
+    write_tile_red_bg(Tile_CmdAlpha)
 
     // Setup pattern table 1
     vram_set_address_i(PATTERN_TABLE_1_ADDRESS)
 
     // pattern 0
     init_tile_red(Tile_ElementHe)
-    write_tile()
+    write_tile_buf()
 
     // pattern 1
     init_tile_blue(Tile_ElementHe)
-    write_tile()
+    write_tile_buf()
 
     // pattern 2
     init_tile_white(Tile_ElementHe)
-    write_tile()
+    write_tile_buf()
+
+    vram_set_address_i(PATTERN_TABLE_1_ADDRESS+(96*16))
+
+    // pattern 96
+    write_tile_white(Tile_CmdBeta)
+
+    vram_set_address_i(PATTERN_TABLE_1_ADDRESS+((96+(1*20)+2)*16))
+    init_tile_blue(Tile_VLine)
+    add_tile_blue(tile_FringeBot)
+    write_tile_buf()
+
+    vram_set_address_i(PATTERN_TABLE_1_ADDRESS+((96+(2*20)+1)*16))
+    init_tile_blue(Tile_HLine)
+    add_tile_blue(tile_FringeRight)
+    write_tile_buf()
+
+    write_tile_blue_bg(Tile_CmdAlpha)
+
+    init_tile_blue(Tile_HLine)
+    add_tile_blue(tile_FringeLeft)
+    write_tile_buf()
+
+    init_tile_blue(Tile_LineBotLeft)
+    write_tile_buf()
+
+    vram_set_address_i(PATTERN_TABLE_1_ADDRESS+((96+(3*20)+2)*16))
+    init_tile_blue(Tile_VLine)
+    add_tile_blue(tile_FringeTop)
+    add_tile_blue(tile_HLine)
+    write_tile_buf()
+
+    write_tile_red_bg(Tile_CmdStart)
+
+    init_tile_blue(Tile_VLine)
+    write_tile_buf()
 
     // Setup name table 0
-    vram_set_address_i(NAME_TABLE_0_ADDRESS)
 
-    ldy #NAMETABLE_HEIGHT/4
+    // background
+    vram_set_address_i(NAME_TABLE_0_ADDRESS)
+    ldy #NAMETABLE_HEIGHT
     lda #0
     do {
         ldx #NAMETABLE_WIDTH
@@ -148,29 +192,7 @@ interrupt.start noreturn main()
         dey
     } while (not zero)
 
-    ldy #NAMETABLE_HEIGHT/4
-    lda #1
-    do {
-        ldx #NAMETABLE_WIDTH
-        do {
-            sta PPU.IO
-            dex
-        } while (not zero)
-        dey
-    } while (not zero)
-
-    ldy #NAMETABLE_HEIGHT/4
-    lda #2
-    do {
-        ldx #NAMETABLE_WIDTH
-        do {
-            sta PPU.IO
-            dex
-        } while (not zero)
-        dey
-    } while (not zero)
-
-    // setup attribute table 0
+    // attribute table
     vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS)
 
     ldy #ATTRIBUTE_TABLE_SIZE
@@ -178,6 +200,45 @@ interrupt.start noreturn main()
     do {
         sta PPU.IO
         dey
+    } while (not zero)
+
+    // unique tiles
+
+    // starting from (6,2), 20x16
+    vram_set_address_i(NAME_TABLE_0_ADDRESS+6+(2*NAMETABLE_WIDTH))
+
+    // (6,2)-(25,9) 20x8, are numbered 96-255
+    // (6,10)-(25,17) 20x8, are numbered 96-255
+
+    ldx #2
+
+    do {
+        txa
+        pha
+
+        ldy #96
+        lda #0
+        do {
+            dey
+            ldx #20
+            do {
+                iny
+                sty PPU.IO
+                dex
+            } while (not zero)
+
+            // skip to next row
+            ldx #NAMETABLE_WIDTH-20
+            do {
+                sta PPU.IO
+                dex
+            } while (not zero)
+            iny
+        } while (not zero)
+
+        pla
+        tax
+        dex
     } while (not zero)
 
     vram_clear_address()
