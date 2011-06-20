@@ -11,6 +11,7 @@
 
 #ram.org 0x0, 0x20
 pointer tmp_addr
+byte    tmp_byte
 shared byte _ppu_ctl0, _ppu_ctl1
 
 byte tile_buf_1[8]
@@ -19,16 +20,18 @@ byte tile_buf_0[8]
 
 // shared pattern staging area
 #ram.org 0x20, 144
+shared word tile_stage_addr[8]
 typedef struct tile_stage_s {
-    word vaddr
     byte tile_buf_1[8]
     byte tile_buf_0[8]
 }
-tile_stage_s tile_stage[8]
+shared tile_stage_s tile_stage[8]
 
 #ram.end
 
-#ram.org 0x300, 1024 // HACK: just made up a large numebr for now
+#ram.org 0x300, 1024 // HACK: just made up a large number for now
+byte next_stage_index
+byte cur_stage_index
 byte red_start_x
 byte red_start_y
 byte red_start_dir
@@ -158,15 +161,14 @@ interrupt.start noreturn main()
     vblank_wait()
 
     clear_vram()
-
     init_ingame_vram()
-
     init_playfield()
+    init_tile_stage()
+
+    some_tests()
 
     vblank_wait()
-
     vram_clear_address()
-
     ppu_ctl0_assign(#CR_NMI)
     ppu_ctl1_assign(#CR_BACKVISIBLE|CR_SPRITESVISIBLE|CR_BACKNOCLIP)
 
@@ -175,6 +177,89 @@ interrupt.start noreturn main()
     forever
     {
     }
+}
+
+/******************************************************************************/
+
+function some_tests()
+{
+    ldx #0
+    ldy #20
+    do {
+        txa
+        pha
+
+        tya
+        pha
+
+        find_free_tile_stage()
+        init_tile_stage_red(Tile_ArrowRight)
+        pla
+        pha
+        ldy #1
+        pos_to_nametable()
+        finalize_tile_stage_XY()
+
+        find_free_tile_stage()
+        init_tile_stage_red(Tile_ArrowLeft)
+        pla
+        pha
+        ldy #2
+        pos_to_nametable()
+        finalize_tile_stage_XY()
+
+        vblank_wait()
+        write_tile_stages()
+
+        pla
+        tay
+        iny
+
+        pla
+        tax
+        dex
+    } while (not zero)
+
+    ldx #8
+    ldy #0
+    do {
+        txa
+        pha
+
+        tya
+        pha
+
+        find_free_tile_stage()
+        init_tile_stage_red(Tile_ArrowUp)
+        pla
+        pha
+        tay
+        lda #4
+        pos_to_nametable()
+        finalize_tile_stage_XY()
+
+/*
+        find_free_tile_stage()
+        init_tile_stage_red(Tile_ArrowDown)
+        pla
+        pha
+        tay
+        lda #5
+        pos_to_nametable()
+        finalize_tile_stage_XY()
+*/
+
+        pla
+        tay
+        iny
+
+        pla
+        tax
+        dex
+    } while (not zero)
+
+    vblank_wait()
+    write_tile_stages()
 }
 
 /******************************************************************************/
@@ -350,6 +435,44 @@ function init_ingame_unique_names()
     } while (not zero)
 
     ppu_ctl0_clear(CR_ADDRINC32)
+}
+
+// In: A = x, Y = y
+// Out: X = low byte, Y = high byte
+function pos_to_nametable()
+{
+    asl A
+    asl A
+    asl A
+    clc
+    adc #96
+    sty tmp_byte
+    adc tmp_byte
+
+    cpy #8
+    if (plus)
+    {
+        ldx #0x1
+        sec
+        sbc #8
+    }
+    else
+    {
+        ldx #0
+    }
+    stx tmp_byte
+
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+
+    tax
+    ldy tmp_byte
 }
 
 /******************************************************************************/
