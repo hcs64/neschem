@@ -21,6 +21,7 @@ element_He.imgbin \
 element_H.imgbin \
 element_Li.imgbin \
 element_Ne.imgbin \
+element_N.imgbin \
 element_O.imgbin \
 fringebot.imgbin \
 fringeleft.imgbin \
@@ -33,9 +34,11 @@ linetopleft.imgbin \
 linetopright.imgbin \
 linev.imgbin
 
-
 test.nes: test.as tiles.as $(IMAGES)
 	neshla test.as
+
+tell: test.as tiles.as
+	neshla test.as -tell
 
 %.imgbin: ../images/%.png
 	../img2bin/img2bin.py $< $@

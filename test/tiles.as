@@ -122,6 +122,7 @@ inline write_tile_blue_bg(tile_addr)
     } while (not minus)
 }
 
+
 function write_tile_buf()
 {
     // tile_buf_1 comes before tile_buf_0 in mem
@@ -141,73 +142,13 @@ Tile_ArrowDown:
 #incbin "arrowdown.imgbin"
 
 Tile_ArrowLeft:
-#incbin "arrowright.imgbin"
+#incbin "arrowleft.imgbin"
 
 Tile_ArrowRight:
 #incbin "arrowright.imgbin"
 
 Tile_ArrowUp:
 #incbin "arrowup.imgbin"
-
-Tile_CmdAlpha:
-#incbin "cmd_alpha.imgbin"
-
-Tile_CmdBeta:
-#incbin "cmd_beta.imgbin"
-
-Tile_CmdBondAdd:
-#incbin "cmd_bondadd.imgbin"
-
-Tile_CmdBomSub:
-#incbin "cmd_bondsub.imgbin"
-
-Tile_CmdDrop:
-#incbin "cmd_d.imgbin"
-
-Tile_CmdFlipFlop:
-#incbin "cmd_ff.imgbin"
-
-Tile_CmdGrabDrop:
-#incbin "cmd_gd.imgbin"
-
-Tile_CmdGrab:
-#incbin "cmd_g.imgbin"
-
-Tile_CmdOmega:
-#incbin "cmd_omega.imgbin"
-
-Tile_CmdPsi:
-#incbin "cmd_psi.imgbin"
-
-Tile_CmdStart:
-#incbin "cmd_start.imgbin"
-
-Tile_ElementBe:
-#incbin "element_Be.imgbin"
-
-Tile_ElementB:
-#incbin "element_B.imgbin"
-
-Tile_ElementC:
-#incbin "element_C.imgbin"
-
-Tile_ElementF:
-#incbin "element_F.imgbin"
-
-Tile_ElementHe:
-#incbin "element_He.imgbin"
-
-Tile_ElementH:
-#incbin "element_H.imgbin"
-
-Tile_ElementLi:
-#incbin "element_Li.imgbin"
-
-Tile_ElementNe:
-#incbin "element_Ne.imgbin"
-
-Tile_ElementO:
-#incbin "element_O.imgbin"
 
 Tile_FringeBot:
 #incbin "fringebot.imgbin"
@@ -238,3 +179,34 @@ Tile_LineTopRight:
 
 Tile_VLine:
 #incbin "linev.imgbin"
+
+struct Tile_Cmds
+{
+#incbin "cmd_alpha.imgbin"  // 1
+#incbin "cmd_beta.imgbin"   // 2
+#incbin "cmd_bondadd.imgbin"// 3
+#incbin "cmd_bondsub.imgbin"// 4
+#incbin "cmd_d.imgbin"      // 5
+#incbin "cmd_ff.imgbin"     // 6
+#incbin "cmd_gd.imgbin"     // 7
+#incbin "cmd_g.imgbin"      // 8
+#incbin "cmd_omega.imgbin"  // 9
+#incbin "cmd_psi.imgbin"    // 10
+#incbin "cmd_start.imgbin"  // 11
+}
+
+struct Tile_Elements
+{
+#incbin "element_H.imgbin"  // 1
+#incbin "element_He.imgbin" // 2
+#incbin "element_Li.imgbin" // 3
+#incbin "element_Be.imgbin" // 4
+#incbin "element_B.imgbin"  // 5
+#incbin "element_C.imgbin"  // 6
+#incbin "element_N.imgbin"  // 7
+#incbin "element_O.imgbin"  // 8
+#incbin "element_F.imgbin"  // 9
+#incbin "element_Ne.imgbin" // 10
+}
+
+
