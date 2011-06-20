@@ -116,7 +116,7 @@ interrupt.nmi int_nmi()
 
     // 341/3 cycles per line + change (8 cycles)
     lda #0x20               // 2
-    ldy #8+(8*10)          // 2
+    ldy #8+(8*12)          // 2
 waitloop:
         ldx #20             // 2 * lines
         do {
@@ -407,14 +407,14 @@ function init_ingame_fixed_patterns()
 
 function init_ingame_unique_names()
 {
-    // starting from (6,2), 20x16
+    // starting from (6,4), 20x16
 
-    // (6,2)-(25,9) 20x8, are numbered 96-255, column first
-    // (6,10)-(25,17) 20x8, are numbered 96-255, column first
+    // (6,4)-(25,11) 20x8, are numbered 96-255, column first
+    // (6,12)-(25,19) 20x8, are numbered 96-255, column first
 
-    lda #lo(NAME_TABLE_0_ADDRESS+6+(2*NAMETABLE_WIDTH))
+    lda #lo(NAME_TABLE_0_ADDRESS+6+(4*NAMETABLE_WIDTH))
     sta tmp_addr+0
-    lda #hi(NAME_TABLE_0_ADDRESS+6+(2*NAMETABLE_WIDTH))
+    lda #hi(NAME_TABLE_0_ADDRESS+6+(4*NAMETABLE_WIDTH))
     sta tmp_addr+1
 
     ppu_ctl0_set(CR_ADDRINC32)
