@@ -98,17 +98,25 @@ interrupt.irq int_irq()
 
 interrupt.nmi int_nmi()
 {
+    pha
+    txa
+    pha
+    tya
+    pha
+
     ppu_ctl0_clear(CR_BACKADDR1000)
 
-    // initial delay (51 cycles) to get sync'd with hsyncs
-    ldx #10                 // 2    
+    write_tile_stages()
+
+    // initial delay to get sync'd with hsyncs
+    ldx #48                 // 2    
     do {
         dex                 // 2 * 10
     } while (not zero)      // 3 * 9 + 2
 
     // 341/3 cycles per line + change (8 cycles)
     lda #0x20               // 2
-    ldy #20+(8*10)          // 2
+    ldy #8+(8*10)          // 2
 waitloop:
         ldx #20             // 2 * lines
         do {
@@ -128,6 +136,11 @@ done:
 
     ppu_ctl0_set(CR_BACKADDR1000)
 
+    pla
+    tay
+    pla
+    tax
+    pla
 }
 
 inline system_initialize_custom()
@@ -141,6 +154,9 @@ inline system_initialize_custom()
 
     sta  PPU.CNT0
     sta  PPU.CNT1
+
+    sta  _ppu_ctl0
+    sta  _ppu_ctl1
 
     sta  PPU.BG_SCROLL
     sta  PPU.BG_SCROLL
@@ -165,8 +181,6 @@ interrupt.start noreturn main()
     init_playfield()
     init_tile_stage()
 
-    some_tests()
-
     vblank_wait()
     vram_clear_address()
     ppu_ctl0_assign(#CR_NMI)
@@ -176,6 +190,9 @@ interrupt.start noreturn main()
 
     forever
     {
+        some_tests()
+
+        ldx #00
     }
 }
 
@@ -183,8 +200,8 @@ interrupt.start noreturn main()
 
 function some_tests()
 {
-    ldx #0
-    ldy #20
+    ldx #20
+    ldy #0
     do {
         txa
         pha
@@ -208,8 +225,13 @@ function some_tests()
         pos_to_nametable()
         finalize_tile_stage_XY()
 
-        vblank_wait()
-        write_tile_stages()
+        find_free_tile_stage()
+        init_tile_stage_red(Tile_ArrowRight)
+        pla
+        pha
+        ldy #3
+        pos_to_nametable()
+        finalize_tile_stage_XY()
 
         pla
         tay
@@ -220,7 +242,7 @@ function some_tests()
         dex
     } while (not zero)
 
-    ldx #8
+    ldx #16
     ldy #0
     do {
         txa
@@ -238,7 +260,6 @@ function some_tests()
         pos_to_nametable()
         finalize_tile_stage_XY()
 
-/*
         find_free_tile_stage()
         init_tile_stage_red(Tile_ArrowDown)
         pla
@@ -247,7 +268,15 @@ function some_tests()
         lda #5
         pos_to_nametable()
         finalize_tile_stage_XY()
-*/
+
+        find_free_tile_stage()
+        init_tile_stage_red(Tile_ArrowUp)
+        pla
+        pha
+        tay
+        lda #6
+        pos_to_nametable()
+        finalize_tile_stage_XY()
 
         pla
         tay
@@ -257,9 +286,6 @@ function some_tests()
         tax
         dex
     } while (not zero)
-
-    vblank_wait()
-    write_tile_stages()
 }
 
 /******************************************************************************/
@@ -362,9 +388,7 @@ function init_ingame_fixed_patterns()
 
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS)
     // 0: empty bg tile
-    init_tile_blue(Tile_ArrowDown)
-    overlay_tile_red(Tile_ArrowUp)
-    write_tile_buf()
+    write_tile_red_bg(Tile_Cmds)
 
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(16*96))
     init_tile_red(Tile_ArrowLeft)
@@ -374,9 +398,7 @@ function init_ingame_fixed_patterns()
 
     vram_set_address_i(PATTERN_TABLE_1_ADDRESS)
     // 0: empty bg tile
-    init_tile_blue(Tile_ArrowUp)
-    overlay_tile_red(Tile_ArrowDown)
-    write_tile_buf()
+    write_tile_blue_bg(Tile_Cmds)
 
     vram_set_address_i(PATTERN_TABLE_1_ADDRESS+(16*96))
     init_tile_blue(Tile_ArrowRight)

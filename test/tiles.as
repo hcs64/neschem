@@ -103,6 +103,8 @@ do_staged_tile:
 
 function write_tile_stages()
 {
+    ppu_clean_latch()
+
     write_1_tile_stage(0)
     write_1_tile_stage(1)
     write_1_tile_stage(2)
@@ -111,6 +113,8 @@ function write_tile_stages()
     write_1_tile_stage(5)
     write_1_tile_stage(6)
     write_1_tile_stage(7)
+
+    vram_clear_address()
 }
 
 /******************************************************************************/
@@ -337,7 +341,8 @@ Tile_LineTopRight:
 Tile_VLine:
 #incbin "linev.imgbin"
 
-struct Tile_Cmds
+Tile_Cmds:
+struct Tile_Cmds_s
 {
 #incbin "cmd_alpha.imgbin"  // 1
 #incbin "cmd_beta.imgbin"   // 2
@@ -352,7 +357,8 @@ struct Tile_Cmds
 #incbin "cmd_start.imgbin"  // 11
 }
 
-struct Tile_Elements
+Tile_Elements:
+struct Tile_Elements_s
 {
 #incbin "element_H.imgbin"  // 1
 #incbin "element_He.imgbin" // 2
@@ -365,5 +371,3 @@ struct Tile_Elements
 #incbin "element_F.imgbin"  // 9
 #incbin "element_Ne.imgbin" // 10
 }
-
-
