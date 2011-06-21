@@ -167,14 +167,20 @@ inline system_initialize_custom()
 
     lda  #0xC0
     sta  joystick.cnt1
+
+    // wait for PPU to turn on
+    bit PPU.STATUS
+vwait1:
+    bit PPU.STATUS
+    bpl vwait1
+vwait2:
+    bit PPU.STATUS
+    bpl vwait2
 }
 
 interrupt.start noreturn main()
 {
     system_initialize_custom()
-
-    vblank_wait_full()
-    vblank_wait()
 
     clear_vram()
     init_ingame_vram()
