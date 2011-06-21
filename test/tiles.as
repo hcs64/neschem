@@ -318,6 +318,7 @@ function write_tile_buf()
 // 8 byte tiles, monochrome, reverse rows
 
 MonoTiles:
+byte Tile_Clear[8] = {0,0,0,0,0,0,0,0}
 
 Tile_ArrowDown:
 #incbin "arrowdown.imgbin"

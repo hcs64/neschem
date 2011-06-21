@@ -13,6 +13,9 @@
 pointer tmp_addr
 byte    tmp_byte
 shared byte _ppu_ctl0, _ppu_ctl1
+shared byte _joypad0
+byte last_joypad0
+byte new_joypad0
 
 byte tile_buf_1[8]
 byte tile_buf_0[8]
@@ -135,6 +138,15 @@ extra:
 done:
 
     ppu_ctl0_set(CR_BACKADDR1000)
+    
+    reset_joystick()
+    ldx #8
+    do {
+        lda JOYSTICK.CNT0
+        lsr A
+        rol _joypad0
+        dex
+    } while (not zero)
 
     pla
     tay
@@ -157,6 +169,8 @@ inline system_initialize_custom()
 
     sta  _ppu_ctl0
     sta  _ppu_ctl1
+    sta _joypad0
+    sta last_joypad0
 
     sta  PPU.BG_SCROLL
     sta  PPU.BG_SCROLL
@@ -194,18 +208,143 @@ interrupt.start noreturn main()
 
     enable_interrupts()
 
-    some_tests()
-    flush_tile_stage()
+    //some_tests()
+    //flush_tile_stage()
 
     forever
     {
-        //some_tests()
+        lda _joypad0
+        tax
+        eor last_joypad0
+        stx last_joypad0
+        and _joypad0
+        sta new_joypad0
+
+        bit new_joypad0
+
+        bvc no_test
+        some_tests()
+        flush_tile_stage()
+        jmp no_clear
+no_test:
+        bpl no_clear
+        some_clears()
+        flush_tile_stage()
+no_clear:
 
         ldx #00
     }
 }
 
 /******************************************************************************/
+
+function some_clears()
+{
+    ldx #20
+    ldy #0
+    do {
+        txa
+        pha
+
+        tya
+        pha
+
+        find_free_tile_stage()
+        pha
+        init_tile_stage_red(Tile_Clear)
+        pla
+        tax
+        pla
+        pha
+        ldy #1
+        pos_to_nametable()
+        finalize_tile_stage()
+
+        find_free_tile_stage()
+        pha
+        init_tile_stage_red(Tile_Clear)
+        pla
+        tax
+        pla
+        pha
+        ldy #2
+        pos_to_nametable()
+        finalize_tile_stage()
+
+        find_free_tile_stage()
+        pha
+        init_tile_stage_red(Tile_Clear)
+        pla
+        tax
+        pla
+        pha
+        ldy #3
+        pos_to_nametable()
+        finalize_tile_stage()
+
+        pla
+        tay
+        iny
+
+        pla
+        tax
+        dex
+    } while (not zero)
+
+    ldx #16
+    ldy #0
+    do {
+        txa
+        pha
+
+        tya
+        pha
+
+        find_free_tile_stage()
+        pha
+        init_tile_stage_red(Tile_Clear)
+        pla
+        tax
+        pla
+        pha
+        tay
+        lda #5
+        pos_to_nametable()
+        finalize_tile_stage()
+
+        find_free_tile_stage()
+        pha
+        init_tile_stage_red(Tile_Clear)
+        pla
+        tax
+        pla
+        pha
+        tay
+        lda #6
+        pos_to_nametable()
+        finalize_tile_stage()
+
+        find_free_tile_stage()
+        pha
+        init_tile_stage_red(Tile_Clear)
+        pla
+        tax
+        pla
+        pha
+        tay
+        lda #7
+        pos_to_nametable()
+        finalize_tile_stage()
+
+        pla
+        tay
+        iny
+
+        pla
+        tax
+        dex
+    } while (not zero)
+}
 
 function some_tests()
 {
