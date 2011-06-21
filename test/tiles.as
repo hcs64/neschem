@@ -2,62 +2,53 @@
 function init_tile_stage()
 {
     ldx #sizeof(tile_stage_addr)-2
-    lda #0x80
-    do {
-        sta tile_stage_addr+1, X
-        dex
-        dex
-    } while (not minus)
+    // start with full buffer
+    stx next_stage_index
+    // nmi doesn't need to do anything yet (nonzero)
+    stx tile_stage_written
 }
 
 function find_free_tile_stage()
 {
-    ldx #sizeof(tile_stage_addr)
-    
-find_free_tile_loop:
-    dex // each entry is a word
+    ldx next_stage_index
+
+    if (minus) {
+        // next index is negative, need to wait for nmi to process buffer
+        do {
+            ldx tile_stage_written
+        } while (zero)
+
+        ldx #sizeof(tile_stage_addr)-2
+    }
+
+    txa
+    tay // save free entry's address offset
+
+    // decrement for next time
     dex
-    bmi find_free_tile_stage
+    dex
+    stx next_stage_index
 
-    lda tile_stage_addr+1, X   // high byte has high bit set for empty
-
-    bpl find_free_tile_loop
-
-    stx cur_stage_index
+    tax
 
     inx // move to next index
     inx
 
-    // X is the free entry's index, convert to staging buffer offset
+    // X is the free entry's address offset, convert to staging buffer offset
     txa
     asl A
     asl A
     asl A
     tax
     dex // move back to penultimate byte
+    tya
 }
 
 inline write_1_tile_stage(index)
 {
+    // 126 cycles
     ldx tile_stage_addr[index]              // 3
     lda tile_stage_addr[index]+1            // 3
-
-    // burn off the three excess cycles accumulated by skipping
-    bpl compensate_staged_1                 // 3, 2
-compensate_staged_1:
-    bpl compensate_staged_2                 // 3, 2
-compensate_staged_2:
-    bpl compensate_staged_3                 // 3, 2
-compensate_staged_3:
-
-    bpl do_staged_tile                      // 3, 2
-
-    // tile 1, throwaway
-    lda #hi(PATTERN_TABLE_0_ADDRESS+16)     // 0, 2
-    ldx #lo(PATTERN_TABLE_0_ADDRESS+16)     // 0, 2
-
-do_staged_tile:
-
 
     sta PPU.ADDRESS                         // 4
     stx PPU.ADDRESS                         // 4
@@ -95,24 +86,40 @@ do_staged_tile:
     sta PPU.IO
     lda tile_stage[index].tile_buf_1[0]
     sta PPU.IO
-
-    // mark this free again
-    lda #0x80                               // 2
-    sta tile_stage_addr[index]+1            // 3
 }
 
 function write_tile_stages()
 {
     ppu_clean_latch()
 
-    write_1_tile_stage(0)
-    write_1_tile_stage(1)
-    write_1_tile_stage(2)
-    write_1_tile_stage(3)
-    write_1_tile_stage(4)
-    write_1_tile_stage(5)
-    write_1_tile_stage(6)
+    lda tile_stage_written
+    beq do_write_tile_stages
+    // 2 + 2 + 202*2 + 201*3 + 2 + 3 = 1016 cycles
+
+    lda #202            // 2
+    tax                 // 2
+
+    do {
+        dex             // 2*202
+    } while (not zero)  // 3*201 + 2
+
+    jmp skip_tile_stages// 3
+
+do_write_tile_stages:
+    // 3 + 126*8 + 2 + 3 = 1016 cycles
     write_1_tile_stage(7)
+    write_1_tile_stage(6)
+    write_1_tile_stage(5)
+    write_1_tile_stage(4)
+    write_1_tile_stage(3)
+    write_1_tile_stage(2)
+    write_1_tile_stage(1)
+    write_1_tile_stage(0)
+
+    lda #1  // 2
+    sta tile_stage_written  // 3
+
+skip_tile_stages:
 
     vram_clear_address()
 }
@@ -139,23 +146,13 @@ inline init_tile_stage_red(tile_addr)
     tax
 }
 
-inline finalize_tile_stage(vram_addr)
+function finalize_tile_stage()
 {
-    ldx cur_stage_index
-    lda #lo(vram_addr)
-    sta tile_stage_addr, X
-    lda #hi(vram_addr)
-    sta tile_stage_addr+1, X // storing the hi makes it count
-}
-
-inline finalize_tile_stage_XY()
-{
-    txa
-
-    ldx cur_stage_index
-
-    sta tile_stage_addr, X
-    sty tile_stage_addr+1, X // storing the hi makes it count
+    lda next_stage_index
+    if (minus) {
+        ldx #0
+        stx tile_stage_written // nmi needs to write
+    }
 }
 
 /******************************************************************************/

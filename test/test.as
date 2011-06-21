@@ -31,7 +31,7 @@ shared tile_stage_s tile_stage[8]
 
 #ram.org 0x300, 1024 // HACK: just made up a large number for now
 byte next_stage_index
-byte cur_stage_index
+byte tile_stage_written // 0: nmi needs to write to ppu, nonzero: main thread is writing
 byte red_start_x
 byte red_start_y
 byte red_start_dir
@@ -116,7 +116,7 @@ interrupt.nmi int_nmi()
 
     // 341/3 cycles per line + change (8 cycles)
     lda #0x20               // 2
-    ldy #8+(8*12)          // 2
+    ldy #9+(8*12)          // 2
 waitloop:
         ldx #20             // 2 * lines
         do {
@@ -210,28 +210,37 @@ function some_tests()
         pha
 
         find_free_tile_stage()
+        pha
         init_tile_stage_red(Tile_ArrowRight)
+        pla
+        tax
         pla
         pha
         ldy #1
         pos_to_nametable()
-        finalize_tile_stage_XY()
+        finalize_tile_stage()
 
         find_free_tile_stage()
+        pha
         init_tile_stage_red(Tile_ArrowLeft)
+        pla
+        tax
         pla
         pha
         ldy #2
         pos_to_nametable()
-        finalize_tile_stage_XY()
+        finalize_tile_stage()
 
         find_free_tile_stage()
+        pha
         init_tile_stage_red(Tile_ArrowRight)
+        pla
+        tax
         pla
         pha
         ldy #3
         pos_to_nametable()
-        finalize_tile_stage_XY()
+        finalize_tile_stage()
 
         pla
         tay
@@ -252,31 +261,40 @@ function some_tests()
         pha
 
         find_free_tile_stage()
+        pha
         init_tile_stage_red(Tile_ArrowUp)
         pla
-        pha
-        tay
-        lda #4
-        pos_to_nametable()
-        finalize_tile_stage_XY()
-
-        find_free_tile_stage()
-        init_tile_stage_red(Tile_ArrowDown)
+        tax
         pla
         pha
         tay
         lda #5
         pos_to_nametable()
-        finalize_tile_stage_XY()
+        finalize_tile_stage()
 
         find_free_tile_stage()
-        init_tile_stage_red(Tile_ArrowUp)
+        pha
+        init_tile_stage_red(Tile_ArrowDown)
+        pla
+        tax
         pla
         pha
         tay
         lda #6
         pos_to_nametable()
-        finalize_tile_stage_XY()
+        finalize_tile_stage()
+
+        find_free_tile_stage()
+        pha
+        init_tile_stage_red(Tile_ArrowUp)
+        pla
+        tax
+        pla
+        pha
+        tay
+        lda #7
+        pos_to_nametable()
+        finalize_tile_stage()
 
         pla
         tay
@@ -459,8 +477,7 @@ function init_ingame_unique_names()
     ppu_ctl0_clear(CR_ADDRINC32)
 }
 
-// In: A = x, Y = y
-// Out: X = low byte, Y = high byte
+// In: A = x, Y = y, X = tile stage address offset
 function pos_to_nametable()
 {
     asl A
@@ -474,15 +491,15 @@ function pos_to_nametable()
     cpy #8
     if (plus)
     {
-        ldx #0x1
+        ldy #0x1
         sec
         sbc #8
     }
     else
     {
-        ldx #0
+        ldy #0
     }
-    stx tmp_byte
+    sty tmp_byte
 
     asl A
     rol tmp_byte
@@ -493,8 +510,9 @@ function pos_to_nametable()
     asl A
     rol tmp_byte
 
-    tax
+    sta tile_stage_addr, X
     ldy tmp_byte
+    sty tile_stage_addr+1, X
 }
 
 /******************************************************************************/
