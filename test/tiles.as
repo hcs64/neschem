@@ -124,6 +124,38 @@ skip_tile_stages:
     vram_clear_address()
 }
 
+function finalize_tile_stage()
+{
+    lda next_stage_index
+    if (minus) {
+        ldx #0
+        stx tile_stage_written // nmi needs to write
+    }
+}
+
+// must be called after finalize_tile_stage
+function flush_tile_stage()
+{
+    // if next_stage_index is minus, buffer is full, and was just sent
+    ldx next_stage_index
+    if (not minus)
+    {
+        // otherwise, it has at least one entry, fill the rest
+        // with writes to pattern 1
+        lda #0  // junk pattern 1
+        ldy #16 // junk pattern 1
+        do {
+            sty tile_stage_addr, X
+            sta tile_stage_addr+1, X
+            dex
+            dex
+        } while (not minus)
+
+        // and pass off control to the nmi
+        sta tile_stage_written // nmi needs to write
+    }
+}
+
 /******************************************************************************/
 
 // X holds offset
@@ -144,15 +176,6 @@ inline init_tile_stage_red(tile_addr)
 
     pla
     tax
-}
-
-function finalize_tile_stage()
-{
-    lda next_stage_index
-    if (minus) {
-        ldx #0
-        stx tile_stage_written // nmi needs to write
-    }
 }
 
 /******************************************************************************/

@@ -194,9 +194,12 @@ interrupt.start noreturn main()
 
     enable_interrupts()
 
+    some_tests()
+    flush_tile_stage()
+
     forever
     {
-        some_tests()
+        //some_tests()
 
         ldx #00
     }
