@@ -35,19 +35,12 @@ shared tile_stage_s tile_stage[8]
 
 #ram.org 0x300, 0x100
 byte next_stage_index
+// count on this not being in zero page
 byte tile_stage_written // 0: nmi needs to write to ppu, nonzero: main thread is writing
-byte red_start_x
-byte red_start_y
-byte red_start_dir
 
 byte blue_start_x
 byte blue_start_y
 byte blue_start_dir
-
-byte resume_render_color
-byte resume_render_x
-byte resume_render_y
-byte resume_render_dir
 
 // what display elements are displayed in each cell
 // columns first to compute easier
@@ -87,6 +80,10 @@ byte playfield_blue_cmd[8*10]
 #ram.end
 
 #ram.org 0x400, 0x100
+byte red_start_x
+byte red_start_y
+byte red_start_dir
+
 byte playfield_red_flags1[8*10]
 byte playfield_red_flags2[8*10]
 byte playfield_red_cmd[8*10]
