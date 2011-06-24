@@ -9,21 +9,32 @@
 #include "nes.h"
 #include "std.h"
 
-#ram.org 0x0, 0x20
+#ram.org 0x0, 0x30
 pointer tmp_addr
 byte    tmp_byte
 shared byte _ppu_ctl0, _ppu_ctl1
 shared byte _joypad0
 byte last_joypad0
 byte new_joypad0
+#define HOLD_DELAY 12
+#define REPEAT_DELAY 3
+struct hold_count_joypad0
+{
+    byte RIGHT, LEFT, DOWN, UP, START, SELECT, A, B
+}
+struct repeat_count_joypad0
+{
+    byte RIGHT, LEFT, DOWN, UP, START, SELECT, A, B
+}
 byte test_idx
+byte cursor_x, cursor_y
 
 byte tile_buf_1[8]
 byte tile_buf_0[8]
 #ram.end
 
 // shared pattern staging area
-#ram.org 0x20, 144
+#ram.org 0x30, 144
 shared word tile_stage_addr[8]
 typedef struct tile_stage_s {
     byte tile_buf_1[8]
@@ -33,10 +44,15 @@ shared tile_stage_s tile_stage[8]
 
 #ram.end
 
+#ram.org 0x200, 0x100
+OAM_ENTRY oam_buf[64]
+#ram.end
+
 #ram.org 0x300, 0x100
 byte next_stage_index
 // count on this not being in zero page
 byte tile_stage_written // 0: nmi needs to write to ppu, nonzero: main thread is writing
+byte oam_ready  // nonzero: nmi needs to do OAM DMA
 
 byte blue_start_x
 byte blue_start_y
@@ -112,15 +128,26 @@ interrupt.nmi int_nmi()
 
     write_tile_stages()
 
-    // initial delay to get sync'd with hsyncs
-    ldx #48                 // 2    
+    ldx #162                // 2    
+
+    lda oam_ready
+    if (not zero)
+    {
+        vram_sprite_dma_copy(oam_buf)   // 4
+        lda #0                          // 2
+        sta oam_ready                   // 3 + 513
+        // (162*5 - (4 + 2 + 3 + 513 + 2)) / 5 = 57.2
+        ldx #57                         // 2
+    }
+
+    // initial delay
     do {
-        dex                 // 2 * 10
-    } while (not zero)      // 3 * 9 + 2
+        dex                 // 2 * X
+    } while (not zero)      // 3 * (X-1) + 2
 
     // 341/3 cycles per line + change (8 cycles)
     lda #0x20               // 2
-    ldy #9+(8*12)          // 2
+    ldy #4+(8*12)          // 2
 waitloop:
         ldx #20             // 2 * lines
         do {
@@ -140,11 +167,41 @@ done:
 
     ppu_ctl0_set(CR_BACKADDR1000)
     
+    // update controller once per frame
     reset_joystick()
     ldx #8
     do {
         lda JOYSTICK.CNT0
         lsr A
+        if (carry)
+        {
+            php
+
+            ldy hold_count_joypad0-1, X
+            iny
+            cpy #HOLD_DELAY
+            if (not equal)
+            {
+                sty hold_count_joypad0-1, X
+            }
+            if (equal)
+            {
+                inc repeat_count_joypad0-1, X
+                if (equal)
+                {
+                    // saturate at 255
+                    dec repeat_count_joypad0-1, X
+                }
+            }
+
+            plp
+        }
+        if (not carry)
+        {
+            lda #0
+            sta hold_count_joypad0-1, X
+            sta repeat_count_joypad0-1, X
+        }
         rol _joypad0
         dex
     } while (not zero)
@@ -170,8 +227,15 @@ inline system_initialize_custom()
 
     sta  _ppu_ctl0
     sta  _ppu_ctl1
-    sta _joypad0
-    sta last_joypad0
+    sta  _joypad0
+    sta  last_joypad0
+    sta  oam_ready
+
+    ldx #8
+    do {
+        dex
+        sta  hold_count_joypad0, X
+    } while (not zero)
 
     sta  PPU.BG_SCROLL
     sta  PPU.BG_SCROLL
@@ -198,6 +262,7 @@ interrupt.start noreturn main()
     system_initialize_custom()
 
     clear_vram()
+    clear_sprites()
     init_ingame_vram()
     init_playfield()
     init_tile_stage()
@@ -205,12 +270,17 @@ interrupt.start noreturn main()
     vblank_wait()
     vram_clear_address()
     ppu_ctl0_assign(#CR_NMI)
-    ppu_ctl1_assign(#CR_BACKVISIBLE|CR_SPRITESVISIBLE|CR_BACKNOCLIP)
+    ppu_ctl1_assign(#CR_BACKVISIBLE|CR_SPRITESVISIBLE|CR_BACKNOCLIP|CR_SPRNOCLIP)
 
     enable_interrupts()
 
     //some_tests()
     //flush_tile_stage()
+
+    lda #8
+    sta cursor_x
+    lda #23
+    sta cursor_y
 
     forever
     {
@@ -233,7 +303,7 @@ no_test:
         flush_tile_stage()
 no_clear:
 
-        ldx #00
+        cursor_test()
     }
 }
 
@@ -421,6 +491,94 @@ function some_tests()
     } while (not zero)
 }
 
+function cursor_test()
+{
+    // check for presses
+    lda new_joypad0
+    ldx #0
+    ldy #0
+
+    and #%00001111
+    cmp #%00001000
+    if (plus)
+    {
+        ldy #-8
+    }
+    and #%00000111
+    cmp #%00000100
+    if (plus)
+    {
+        ldy #8
+    }
+    and #%00000011
+    cmp #%00000010
+    if (plus)
+    {
+        ldx #-8
+    }
+    and #%00000001
+    if (not zero)
+    {
+        ldx #8
+    }
+
+    // check for triggered repeats
+    lda repeat_count_joypad0.UP
+    cmp #REPEAT_DELAY
+    if (greater)
+    {
+        lda #0
+        sta repeat_count_joypad0.UP
+        ldy #-8
+    }
+    lda repeat_count_joypad0.DOWN
+    cmp #REPEAT_DELAY
+    if (greater)
+    {
+        lda #0
+        sta repeat_count_joypad0.DOWN
+        ldy #8
+    }
+    lda repeat_count_joypad0.LEFT
+    cmp #REPEAT_DELAY
+    if (greater)
+    {
+        lda #0
+        sta repeat_count_joypad0.LEFT
+        ldx #-8
+    }
+    lda repeat_count_joypad0.RIGHT
+    cmp #REPEAT_DELAY
+    if (greater)
+    {
+        lda #0
+        sta repeat_count_joypad0.RIGHT
+        ldx #8
+    }
+
+    stx tmp_byte
+    lda cursor_x
+    clc
+    adc tmp_byte
+    sta oam_buf[0].x
+    sta cursor_x
+
+    sty tmp_byte
+    lda cursor_y
+    clc
+    adc tmp_byte
+    sta oam_buf[0].y
+    sta cursor_y
+
+    lda #0
+    sta oam_buf[0].attributes
+    lda #2
+    sta oam_buf[0].tile
+
+    ldx #01
+    stx oam_ready
+}
+
 /******************************************************************************/
 
 function init_playfield()
@@ -489,6 +647,17 @@ function clear_vram()
     } while (not zero)
 }
 
+/******************************************************************************/
+
+function clear_sprites()
+{
+    ldx #0
+    lda #0xFF
+    do {
+        dex
+        sta oam_buf, X
+    } while (not zero)
+}
 
 /******************************************************************************/
 
@@ -506,10 +675,19 @@ function init_ingame_palette()
 
     ldx #4-1
     do {
-        lda pal, X
+        lda bg_palette, X
         sta PPU.IO
         dex
     } while (not minus)
+
+    vram_set_address_i(PAL_1_ADDRESS)
+    ldx #4-1
+    do {
+        lda bg_palette, X
+        sta PPU.IO
+        dex
+    } while (not minus)
+
 }
 
 function init_ingame_fixed_patterns()
@@ -519,9 +697,13 @@ function init_ingame_fixed_patterns()
 
     // Setup pattern table 0
 
-    vram_set_address_i(PATTERN_TABLE_0_ADDRESS)
     // 0: empty bg tile
+    vram_set_address_i(PATTERN_TABLE_0_ADDRESS)
     write_tile_red_bg(Tile_Cmds)
+
+    // 2: temp cursor
+    vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(16*2))
+    write_tile_red_bg(Tile_Elements)
 
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(16*96))
     init_tile_red(Tile_ArrowLeft)
@@ -632,9 +814,10 @@ function pos_to_nametable()
 
 /******************************************************************************/
 
-byte pal[4] = {0x20, // 11: white
-               0x12, // 10: blue
-               0x16, // 01: red
-               0x10} // 00: gray (bg)
+byte bg_palette[4] = {
+                0x20, // 11: white
+                0x12, // 10: blue
+                0x16, // 01: red
+                0x10} // 00: gray (bg)
 
 #include "tiles.as"
