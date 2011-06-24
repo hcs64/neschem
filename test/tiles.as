@@ -22,26 +22,24 @@ function find_free_tile_stage()
     }
 
     txa
-    tay // save free entry's address offset
+    tay // save free entry's address offset in Y
 
     // decrement for next time
     dex
     dex
     stx next_stage_index
 
-    tax
+    // A is the free entry's address offset, convert to staging buffer offset (end)
+    clc
+    adc #2 // move to next index
 
-    inx // move to next index
-    inx
+    asl A
+    asl A
+    asl A
+    // carry will be clear
+    adc #0xFF // move back to penultimate byte, where writing starts
 
-    // X is the free entry's address offset, convert to staging buffer offset
-    txa
-    asl A
-    asl A
-    asl A
-    tax
-    dex // move back to penultimate byte
-    tya
+    // result: A has staging buffer offset, Y has address offset
 }
 
 inline write_1_tile_stage(index)

@@ -16,6 +16,7 @@ shared byte _ppu_ctl0, _ppu_ctl1
 shared byte _joypad0
 byte last_joypad0
 byte new_joypad0
+byte test_idx
 
 byte tile_buf_1[8]
 byte tile_buf_0[8]
@@ -32,7 +33,7 @@ shared tile_stage_s tile_stage[8]
 
 #ram.end
 
-#ram.org 0x300, 1024 // HACK: just made up a large number for now
+#ram.org 0x300, 0x100
 byte next_stage_index
 byte tile_stage_written // 0: nmi needs to write to ppu, nonzero: main thread is writing
 byte red_start_x
@@ -51,7 +52,6 @@ byte resume_render_dir
 // what display elements are displayed in each cell
 // columns first to compute easier
 byte playfield_blue_flags1[8*10]
-byte playfield_red_flags1[8*10]
 
 enum pf_flag1 {
     // comefrom
@@ -67,7 +67,6 @@ enum pf_flag1 {
 }
 
 byte playfield_blue_flags2[8*10]
-byte playfield_red_flags2[8*10]
 
 enum pf_flag2 {
     // adjacent command
@@ -84,8 +83,13 @@ enum pf_flag2 {
 
 // command in each cell
 byte playfield_blue_cmd[8*10]
-byte playfield_red_cmd[8*10]
 
+#ram.end
+
+#ram.org 0x400, 0x100
+byte playfield_red_flags1[8*10]
+byte playfield_red_flags2[8*10]
+byte playfield_red_cmd[8*10]
 #ram.end
 
 #rom.bank BANK_MAIN_ENTRY
@@ -242,49 +246,42 @@ function some_clears()
 {
     ldx #20
     ldy #0
+    sty test_idx
     do {
         txa
         pha
 
-        tya
-        pha
-
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_Clear)
+        ldx #1
+        lda test_idx
+        pos_to_nametable()
         pla
         tax
-        pla
-        pha
-        ldy #1
-        pos_to_nametable()
+        init_tile_stage_red(Tile_Clear)
         finalize_tile_stage()
 
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_Clear)
+        ldx #2
+        lda test_idx
+        pos_to_nametable()
         pla
         tax
-        pla
-        pha
-        ldy #2
-        pos_to_nametable()
+        init_tile_stage_red(Tile_Clear)
         finalize_tile_stage()
 
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_Clear)
+        ldx #3
+        lda test_idx
+        pos_to_nametable()
         pla
         tax
-        pla
-        pha
-        ldy #3
-        pos_to_nametable()
+        init_tile_stage_red(Tile_Clear)
         finalize_tile_stage()
 
-        pla
-        tay
-        iny
+        inc test_idx
 
         pla
         tax
@@ -293,52 +290,42 @@ function some_clears()
 
     ldx #16
     ldy #0
+    sty test_idx
     do {
         txa
         pha
 
-        tya
-        pha
-
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_Clear)
-        pla
-        tax
-        pla
-        pha
-        tay
         lda #5
+        ldx test_idx
         pos_to_nametable()
+        pla
+        tax
+        init_tile_stage_red(Tile_Clear)
         finalize_tile_stage()
 
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_Clear)
-        pla
-        tax
-        pla
-        pha
-        tay
         lda #6
+        ldx test_idx
         pos_to_nametable()
+        pla
+        tax
+        init_tile_stage_red(Tile_Clear)
         finalize_tile_stage()
 
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_Clear)
+        lda #7
+        ldx test_idx
+        pos_to_nametable()
         pla
         tax
-        pla
-        pha
-        tay
-        lda #7
-        pos_to_nametable()
+        init_tile_stage_red(Tile_Clear)
         finalize_tile_stage()
 
-        pla
-        tay
-        iny
+        inc test_idx
 
         pla
         tax
@@ -350,49 +337,42 @@ function some_tests()
 {
     ldx #20
     ldy #0
+    sty test_idx
     do {
         txa
         pha
 
-        tya
-        pha
-
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_ArrowRight)
+        ldx #1
+        lda test_idx
+        pos_to_nametable()
         pla
         tax
-        pla
-        pha
-        ldy #1
-        pos_to_nametable()
+        init_tile_stage_red(Tile_ArrowRight)
         finalize_tile_stage()
 
         find_free_tile_stage()
         pha
+        ldx #2
+        lda test_idx
+        pos_to_nametable()
+        pla
+        tax
         init_tile_stage_red(Tile_ArrowLeft)
-        pla
-        tax
-        pla
-        pha
-        ldy #2
-        pos_to_nametable()
         finalize_tile_stage()
 
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_ArrowRight)
+        ldx #3
+        lda test_idx
+        pos_to_nametable()
         pla
         tax
-        pla
-        pha
-        ldy #3
-        pos_to_nametable()
+        init_tile_stage_red(Tile_ArrowRight)
         finalize_tile_stage()
 
-        pla
-        tay
-        iny
+        inc test_idx
 
         pla
         tax
@@ -401,52 +381,42 @@ function some_tests()
 
     ldx #16
     ldy #0
+    sty test_idx
     do {
         txa
         pha
 
-        tya
-        pha
-
         find_free_tile_stage()
         pha
-        init_tile_stage_red(Tile_ArrowUp)
-        pla
-        tax
-        pla
-        pha
-        tay
         lda #5
+        ldx test_idx
         pos_to_nametable()
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        init_tile_stage_red(Tile_ArrowDown)
         pla
         tax
-        pla
-        pha
-        tay
-        lda #6
-        pos_to_nametable()
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
         init_tile_stage_red(Tile_ArrowUp)
-        pla
-        tax
-        pla
-        pha
-        tay
-        lda #7
-        pos_to_nametable()
         finalize_tile_stage()
 
+        find_free_tile_stage()
+        pha
+        lda #6
+        ldx test_idx
+        pos_to_nametable()
         pla
-        tay
-        iny
+        tax
+        init_tile_stage_red(Tile_ArrowDown)
+        finalize_tile_stage()
+
+        find_free_tile_stage()
+        pha
+        lda #7
+        ldx test_idx
+        pos_to_nametable()
+        pla
+        tax
+        init_tile_stage_red(Tile_ArrowUp)
+        finalize_tile_stage()
+
+        inc test_idx
 
         pla
         tax
@@ -625,7 +595,7 @@ function init_ingame_unique_names()
     ppu_ctl0_clear(CR_ADDRINC32)
 }
 
-// In: A = x, Y = y, X = tile stage address offset
+// In: A = x, X = y, Y = tile stage address offset
 function pos_to_nametable()
 {
     asl A
@@ -633,21 +603,21 @@ function pos_to_nametable()
     asl A
     clc
     adc #96
-    sty tmp_byte
+    stx tmp_byte
     adc tmp_byte
 
-    cpy #8
+    cpx #8
     if (plus)
     {
-        ldy #0x1
+        ldx #0x1
         sec
         sbc #8
     }
     else
     {
-        ldy #0
+        ldx #0
     }
-    sty tmp_byte
+    stx tmp_byte
 
     asl A
     rol tmp_byte
@@ -658,9 +628,9 @@ function pos_to_nametable()
     asl A
     rol tmp_byte
 
-    sta tile_stage_addr, X
-    ldy tmp_byte
-    sty tile_stage_addr+1, X
+    sta tile_stage_addr, Y
+    ldx tmp_byte
+    stx tile_stage_addr+1, Y
 }
 
 /******************************************************************************/
