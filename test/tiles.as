@@ -289,6 +289,26 @@ inline init_tile_stage_red(tile_addr)
     tax
 }
 
+// X holds offset
+inline init_tile_stage_blue(tile_addr)
+{
+    txa
+    pha
+
+    ldy #8-1
+    do {
+        lda #0
+        sta tile_stage, X
+        lda tile_addr, Y
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+
+    pla
+    tax
+}
+
 /******************************************************************************/
 
 inline init_tile_red(tile_addr)

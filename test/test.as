@@ -35,10 +35,10 @@ pointer current_command_tile
 #define PLAYFIELD_HEIGHT    8
 #define PLAYFIELD_X_START   6
 #define PLAYFIELD_Y_START   4
-#define CURSOR_X_LIMIT_HI_FLAG 0x01
-#define CURSOR_X_LIMIT_LO_FLAG 0x81
-#define CURSOR_Y_LIMIT_HI_FLAG 0x01
-#define CURSOR_Y_LIMIT_LO_FLAG 0x81
+#define CURSOR_X_LIMIT_HI_FLAG 1
+#define CURSOR_X_LIMIT_LO_FLAG 0x80
+#define CURSOR_Y_LIMIT_HI_FLAG 1
+#define CURSOR_Y_LIMIT_LO_FLAG 0x80
 byte cursor_x_limit_flag, cursor_y_limit_flag 
 
 byte tile_buf_1[8]
@@ -366,6 +366,18 @@ no_clear:
 
 /******************************************************************************/
 
+function calc_command_offset()
+{
+    lda cursor_x
+    asl A
+    asl A
+    asl A
+    sta tmp_byte
+    lda cursor_y
+    adc tmp_byte
+    tax
+}
+
 function update_current_command_tile()
 {
     lda #0
@@ -389,7 +401,7 @@ function update_current_command_tile()
     sta current_command_tile+1
 }
 
-inline setup_blue_command_addr()
+inline setup_blue_command_playfield_addr()
 {
     find_free_tile_stage()
     pha
@@ -399,12 +411,10 @@ inline setup_blue_command_addr()
     inx
     lda cursor_x
     asl A
-    clc
     adc #1
-    pos_to_nametable()
 }
 
-inline setup_red_command_addr()
+inline setup_red_command_playfield_addr()
 {
     find_free_tile_stage()
     pha
@@ -413,12 +423,16 @@ inline setup_red_command_addr()
     tax
     lda cursor_x
     asl A
-    pos_to_nametable()
 }
 
 function place_blue_command()
 {
-    setup_blue_command_addr()
+    calc_command_offset()
+    lda current_command
+    sta playfield_blue_cmd, X
+
+    setup_blue_command_playfield_addr()
+    pos_to_nametable()
 
     lda current_command_tile+0
     sta tmp_addr+0
@@ -429,11 +443,141 @@ function place_blue_command()
     tax
     set_tile_stage_blue_bg_ind()
     finalize_tile_stage()
+
+    // left fringe
+    // limit processing not needed for blue
+    find_free_tile_stage()
+    pha
+
+    lda cursor_y
+    asl A
+    tax
+    inx
+    lda cursor_x
+    asl A
+    pos_to_nametable()
+
+    pla
+    tax
+    init_tile_stage_blue(Tile_FringeRight)
+    finalize_tile_stage()
+
+    // right fringe
+    find_free_tile_stage()
+    pha
+    lda cursor_y
+    ldx cursor_x_limit_flag
+
+    beq blue_right_fringe_no_limit
+    bmi blue_right_fringe_no_limit
+        tax
+        and #4
+        lsr A
+        lsr A
+        sta tmp_byte
+        txa
+        and #3 // names repeat past the fold
+        adc #92 // right start
+
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+
+        sta tile_stage_addr+0, Y
+        lda tmp_byte
+        sta tile_stage_addr+1, Y
+
+        jmp blue_right_fringe_done
+blue_right_fringe_no_limit:
+        asl A
+        tax
+        inx
+        lda cursor_x
+        asl A
+        adc #2
+        pos_to_nametable()
+blue_right_fringe_done:
+
+    pla
+    tax
+    init_tile_stage_blue(Tile_FringeLeft)
+    finalize_tile_stage()
+
+    // top fringe
+    // limit processing not needed for blue
+    find_free_tile_stage()
+    pha
+
+    lda cursor_y
+    asl A
+    tax
+    lda cursor_x
+    asl A
+    adc #1
+    pos_to_nametable()
+
+    pla
+    tax
+    init_tile_stage_blue(Tile_FringeBot)
+    finalize_tile_stage()
+
+    // bottom fringe
+    find_free_tile_stage()
+    pha
+    ldx cursor_y_limit_flag
+    beq blue_bot_fringe_no_limit
+    bmi blue_bot_fringe_no_limit
+        // bottom limit fringe can only be in name table 1
+        lda cursor_x
+        clc
+        adc #78 // top start
+        ldx #1
+        stx tmp_byte
+
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+
+        sta tile_stage_addr+0, Y
+        lda tmp_byte
+        sta tile_stage_addr+1, Y
+        jmp blue_bot_fringe_done
+blue_bot_fringe_no_limit:
+        lda cursor_y
+        asl A
+        tax
+        inx
+        inx
+        lda cursor_x
+        asl A
+        adc #1
+        pos_to_nametable()
+blue_bot_fringe_done:
+
+    pla
+    tax
+    init_tile_stage_blue(Tile_FringeTop)
+    finalize_tile_stage()
 }
 
 function place_red_command()
 {
-    setup_red_command_addr()
+    calc_command_offset()
+    lda current_command
+    sta playfield_red_cmd, X
+
+    setup_red_command_playfield_addr()
+    pos_to_nametable()
 
     lda current_command_tile+0
     sta tmp_addr+0
@@ -444,11 +588,139 @@ function place_red_command()
     tax
     set_tile_stage_red_bg_ind()
     finalize_tile_stage()
+
+    // left fringe
+    find_free_tile_stage()
+    pha
+    lda cursor_y
+    ldx cursor_x_limit_flag
+    if (minus)
+    {
+        tax
+        and #4
+        lsr A
+        lsr A
+        sta tmp_byte
+        txa
+        and #3 // names repeat past the fold
+        adc #88 // left start
+
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+
+        sta tile_stage_addr+0, Y
+        lda tmp_byte
+        sta tile_stage_addr+1, Y
+    }
+    else
+    {
+        asl A
+        tax
+        lda cursor_x
+        asl A
+        sec
+        sbc #1
+        pos_to_nametable()
+    }
+
+    pla
+    tax
+    init_tile_stage_red(Tile_FringeRight)
+    finalize_tile_stage()
+
+    // right fringe
+    // limit processing not needed for red
+    find_free_tile_stage()
+    pha
+
+    lda cursor_y
+    asl A
+    tax
+    lda cursor_x
+    asl A
+    adc #1
+    pos_to_nametable()
+
+    pla
+    tax
+    init_tile_stage_red(Tile_FringeLeft)
+    finalize_tile_stage()
+
+    // top fringe
+    find_free_tile_stage()
+    pha
+    ldx cursor_y_limit_flag
+    if (minus)
+    {
+        // top limit fringe can only be in name table 0
+        lda cursor_x
+        clc
+        adc #78 // top start
+        ldx #0
+        stx tmp_byte
+
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+        asl A
+        rol tmp_byte
+
+        sta tile_stage_addr+0, Y
+        lda tmp_byte
+        sta tile_stage_addr+1, Y
+    }
+    else
+    {
+        lda cursor_y
+        asl A
+        tax
+        dex
+        lda cursor_x
+        asl A
+        pos_to_nametable()
+    }
+
+    pla
+    tax
+    init_tile_stage_red(Tile_FringeBot)
+    finalize_tile_stage()
+
+    // bottom fringe
+    // limit processing not needed for red
+    find_free_tile_stage()
+    pha
+
+    lda cursor_y
+    asl A
+    tax
+    inx
+    lda cursor_x
+    asl A
+    pos_to_nametable()
+
+    pla
+    tax
+    init_tile_stage_red(Tile_FringeTop)
+    finalize_tile_stage()
 }
 
 function clear_blue_command()
 {
-    setup_blue_command_addr()
+    calc_command_offset()
+    lda #0
+    sta playfield_blue_cmd, X
+
+    setup_blue_command_playfield_addr()
+    pos_to_nametable()
 
     pla
     tax
@@ -458,7 +730,12 @@ function clear_blue_command()
 
 function clear_red_command()
 {
-    setup_red_command_addr()
+    calc_command_offset()
+    lda #0
+    sta playfield_red_cmd, X
+
+    setup_red_command_playfield_addr()
+    pos_to_nametable()
 
     pla
     tax
@@ -764,7 +1041,9 @@ function init_ingame_fixed_patterns()
 
 function init_ingame_unique_names()
 {
-    // starting from (6,4), 20x16
+    ppu_ctl0_set(CR_ADDRINC32)
+
+    // main body, starting from (6,4), 20x16
 
     // (6,4)-(25,11) 20x8, are numbered 96-255, column first
     // (6,12)-(25,19) 20x8, are numbered 96-255, column first
@@ -773,8 +1052,6 @@ function init_ingame_unique_names()
     sta tmp_addr+0
     lda #hi(NAME_TABLE_0_ADDRESS+6+(4*NAMETABLE_WIDTH))
     sta tmp_addr+1
-
-    ppu_ctl0_set(CR_ADDRINC32)
 
     ldx #2
 
@@ -813,7 +1090,80 @@ function init_ingame_unique_names()
         dex
     } while (not zero)
 
+    // borders for stuff reaching over the edges
+
+    // left border, (5,4)-(5,10) (inc 2) are numbered 88-91
+    // left border, (5,12)-(5,18) (inc 2) are numbered 88-91
+
+    vram_set_address_i(NAME_TABLE_0_ADDRESS+5+(4*NAMETABLE_WIDTH))
+    ldx #2
+    do {
+        txa
+        pha
+
+        ldx #4
+        ldy #88
+        lda #0
+        do {
+            sty PPU.IO
+            sta PPU.IO
+            iny
+            dex
+        } while (not zero)
+
+        pla
+        tax
+        dex
+    } while (not zero)
+
+    // right border, (26,5)-(26,11) (inc 2) are numbered 92-95
+    // right border, (26,13)-(26,19) (inc 2) are numbered 92-95
+    vram_set_address_i(NAME_TABLE_0_ADDRESS+26+(4*NAMETABLE_WIDTH))
+    ldx #2
+    do {
+        txa
+        pha
+
+        ldx #4
+        ldy #92
+        lda #0
+        do {
+            sta PPU.IO
+            sty PPU.IO
+            iny
+            dex
+        } while (not zero)
+
+        pla
+        tax
+        dex
+    } while (not zero)
+
     ppu_ctl0_clear(CR_ADDRINC32)
+
+    // top border, (6,3)-(24,3) (inc 2) are numbered 78-87
+    vram_set_address_i(NAME_TABLE_0_ADDRESS+6+(3*NAMETABLE_WIDTH))
+    ldx #10
+    ldy #78
+    lda #0
+    do {
+        sty PPU.IO
+        sta PPU.IO
+        iny
+        dex
+    } while (not zero)
+
+    // bottom border, (7,20)-(26,20) (inc 2) are numbered 78-87
+    vram_set_address_i(NAME_TABLE_0_ADDRESS+6+(20*NAMETABLE_WIDTH))
+    ldx #10
+    ldy #78
+    lda #0
+    do {
+        sta PPU.IO
+        sty PPU.IO
+        iny
+        dex
+    } while (not zero)
 }
 
 // In: A = x, X = y, Y = tile stage address offset
