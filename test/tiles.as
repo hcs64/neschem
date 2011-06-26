@@ -156,6 +156,11 @@ function flush_tile_stage()
 
 /******************************************************************************/
 
+// all preserve X unless otherwise specified
+// init:    initially set the stage
+// set:     same as init, but don't preserve X
+// overlay: replace existing pixels
+
 // X holds offset
 function set_tile_stage_blue_bg_ind()
 {
@@ -195,6 +200,73 @@ function set_tile_stage_clear()
         dex
         dey
     } while (not minus)
+}
+
+// X holds offset
+inline init_tile_stage_white(tile_addr)
+{
+    txa
+    pha
+
+    ldy #8-1
+    do {
+        lda tile_addr, Y
+        sta tile_stage, X
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+
+    pla
+    tax
+}
+
+// X holds offset
+function overlay_tile_stage_blue_ind()
+{
+    txa
+    pha
+
+    ldy #8-1
+    do {
+        lda [tmp_addr], Y
+        pha
+        ora tile_stage-8, X
+        sta tile_stage-8, X
+        pla
+        eor #0xFF
+        and tile_stage, X
+        sta tile_stage, X
+        dex
+        dey
+    } while (not minus)
+
+    pla
+    tax
+}
+
+// X holds offset
+function overlay_tile_stage_red_ind()
+{
+    txa
+    pha
+
+    ldy #8-1
+    do {
+        lda [tmp_addr], Y
+        pha
+        ora tile_stage, X
+        sta tile_stage, X
+        pla
+        eor #0xFF
+        and tile_stage-8, X
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+
+    pla
+    tax
 }
 
 // X holds offset
@@ -431,3 +503,10 @@ struct Tile_Elements_s
 #incbin "element_F.imgbin"  // 9
 #incbin "element_Ne.imgbin" // 10
 }
+
+Tile_Cursor_TopLeft:
+#incbin "cursor_topleft.imgbin"
+Tile_Cursor_TopRight_BotLeft:
+#incbin "cursor_topright_botleft.imgbin"
+Tile_Cursor_BotRight:
+#incbin "cursor_botright.imgbin"

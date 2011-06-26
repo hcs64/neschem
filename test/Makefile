@@ -13,6 +13,9 @@ cmd_g.imgbin \
 cmd_omega.imgbin \
 cmd_psi.imgbin \
 cmd_start.imgbin \
+cursor_topleft.imgbin \
+cursor_topright_botleft.imgbin \
+cursor_botright.imgbin \
 element_Be.imgbin \
 element_B.imgbin \
 element_C.imgbin \

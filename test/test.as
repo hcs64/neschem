@@ -28,8 +28,8 @@ struct repeat_count_joypad0
 }
 byte test_idx
 byte cursor_x, cursor_y
-pointer current_command
-byte current_color
+byte current_command
+pointer current_command_tile
 
 #define PLAYFIELD_WIDTH     10
 #define PLAYFIELD_HEIGHT    8
@@ -61,6 +61,8 @@ OAM_ENTRY oam_buf[64]
 #ram.end
 
 #ram.org 0x300, 0x100
+byte current_color
+
 byte next_stage_index
 // count on this not being in zero page
 byte tile_stage_written // 0: nmi needs to write to ppu, nonzero: main thread is writing
@@ -297,11 +299,14 @@ interrupt.start noreturn main()
     lda cursor_y_limit_lookup
     sta cursor_y_limit_flag
 
-    lda #8
-    sta current_command+0
+    lda #1
+    sta current_command
+    update_current_command_tile()
     lda #0
-    sta current_command+1
     sta current_color
+
+    init_cursor_sprites()
+    update_cursor_sprites()
 
     forever
     {
@@ -351,6 +356,8 @@ no_clear:
         if (not zero)
         {
             inc current_color
+
+            update_cursor_sprites()
         }
 
         cursor_test()
@@ -358,6 +365,29 @@ no_clear:
 }
 
 /******************************************************************************/
+
+function update_current_command_tile()
+{
+    lda #0
+    sta current_command_tile+1
+
+    lda current_command
+    asl A
+    rol current_command_tile+1
+    asl A
+    rol current_command_tile+1
+    asl A
+    rol current_command_tile+1
+    sta current_command_tile+0
+
+    clc
+    lda #lo(Tile_Cmds)
+    adc current_command_tile+0
+    sta current_command_tile+0
+    lda #hi(Tile_Cmds)
+    adc current_command_tile+1
+    sta current_command_tile+1
+}
 
 inline setup_blue_command_addr()
 {
@@ -390,12 +420,9 @@ function place_blue_command()
 {
     setup_blue_command_addr()
 
-    clc
-    lda #lo(Tile_Cmds)
-    adc current_command+0
+    lda current_command_tile+0
     sta tmp_addr+0
-    lda #hi(Tile_Cmds)
-    adc current_command+1
+    lda current_command_tile+1
     sta tmp_addr+1
 
     pla
@@ -408,12 +435,9 @@ function place_red_command()
 {
     setup_red_command_addr()
 
-    clc
-    lda #lo(Tile_Cmds)
-    adc current_command+0
+    lda current_command_tile+0
     sta tmp_addr+0
-    lda #hi(Tile_Cmds)
-    adc current_command+1
+    lda current_command_tile+1
     sta tmp_addr+1
 
     pla
@@ -440,188 +464,6 @@ function clear_red_command()
     tax
     set_tile_stage_clear()
     finalize_tile_stage()
-}
-
-function some_clears()
-{
-    ldx #20
-    ldy #0
-    sty test_idx
-    do {
-        txa
-        pha
-
-        find_free_tile_stage()
-        pha
-        ldx #1
-        lda test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_Clear)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        ldx #2
-        lda test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_Clear)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        ldx #3
-        lda test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_Clear)
-        finalize_tile_stage()
-
-        inc test_idx
-
-        pla
-        tax
-        dex
-    } while (not zero)
-
-    ldx #16
-    ldy #0
-    sty test_idx
-    do {
-        txa
-        pha
-
-        find_free_tile_stage()
-        pha
-        lda #5
-        ldx test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_Clear)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        lda #6
-        ldx test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_Clear)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        lda #7
-        ldx test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_Clear)
-        finalize_tile_stage()
-
-        inc test_idx
-
-        pla
-        tax
-        dex
-    } while (not zero)
-}
-
-function some_tests()
-{
-    ldx #20
-    ldy #0
-    sty test_idx
-    do {
-        txa
-        pha
-
-        find_free_tile_stage()
-        pha
-        ldx #1
-        lda test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_ArrowRight)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        ldx #2
-        lda test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_ArrowLeft)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        ldx #3
-        lda test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_ArrowRight)
-        finalize_tile_stage()
-
-        inc test_idx
-
-        pla
-        tax
-        dex
-    } while (not zero)
-
-    ldx #16
-    ldy #0
-    sty test_idx
-    do {
-        txa
-        pha
-
-        find_free_tile_stage()
-        pha
-        lda #5
-        ldx test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_ArrowUp)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        lda #6
-        ldx test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_ArrowDown)
-        finalize_tile_stage()
-
-        find_free_tile_stage()
-        pha
-        lda #7
-        ldx test_idx
-        pos_to_nametable()
-        pla
-        tax
-        init_tile_stage_red(Tile_ArrowUp)
-        finalize_tile_stage()
-
-        inc test_idx
-
-        pla
-        tax
-        dex
-    } while (not zero)
 }
 
 inline process_X_button(button_mask, button_repeat_count, delta)
@@ -742,6 +584,11 @@ process_new_coords_y:
     asl A
     asl A
     sta oam_buf[0].x
+    sta oam_buf[2].x
+    clc
+    adc #8
+    sta oam_buf[1].x
+    sta oam_buf[3].x
 
     lda cursor_y
     asl A
@@ -753,11 +600,26 @@ process_new_coords_y:
     tax
     dex
     stx oam_buf[0].y
+    stx oam_buf[1].y
+    txa
+    clc
+    adc #8
+    sta oam_buf[2].y
+    sta oam_buf[3].y
 
     lda #0
     sta oam_buf[0].attributes
-    lda #2
-    sta oam_buf[0].tile
+    sta oam_buf[1].attributes
+    sta oam_buf[3].attributes
+    lda #%11000000 // h&v flip
+    sta oam_buf[2].attributes
+    ldx #2
+    stx oam_buf[0].tile
+    inx
+    stx oam_buf[1].tile
+    stx oam_buf[2].tile
+    inx
+    stx oam_buf[3].tile
 
     ldx #01
     stx oam_ready
@@ -885,10 +747,6 @@ function init_ingame_fixed_patterns()
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS)
     write_tile_red_bg(Tile_Cmds)
 
-    // 2: temp cursor
-    vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(16*2))
-    write_tile_red_bg(Tile_Elements)
-
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(16*96))
     init_tile_red(Tile_ArrowLeft)
     write_tile_buf()
@@ -994,6 +852,73 @@ function pos_to_nametable()
     sta tile_stage_addr, Y
     ldx tmp_byte
     stx tile_stage_addr+1, Y
+}
+
+function init_cursor_sprites()
+{
+    // set the fixed parts of the cursor
+    find_free_tile_stage()
+
+    // pattern 3, top right and bottom left
+    ldx #16*3
+    stx tile_stage_addr+0, Y
+    ldx #0
+    stx tile_stage_addr+1, Y
+
+    tax
+    init_tile_stage_white(Tile_Cursor_TopRight_BotLeft)
+    finalize_tile_stage()
+}
+
+function update_cursor_sprites()
+{
+    // pattern 2, top left
+    find_free_tile_stage()
+
+    ldx #16*2
+    stx tile_stage_addr+0, Y
+    ldx #0
+    stx tile_stage_addr+1, Y
+
+    tax
+    init_tile_stage_white(Tile_Cursor_TopLeft)
+
+    lda #1
+    bit current_color
+    if (zero)
+    {
+        lda current_command_tile+0
+        sta tmp_addr+0
+        lda current_command_tile+1
+        sta tmp_addr+1
+        overlay_tile_stage_red_ind()
+    }
+    finalize_tile_stage()
+
+    // pattern 3, bottom right
+    find_free_tile_stage()
+
+    ldx #16*4
+    stx tile_stage_addr+0, Y
+    ldx #0
+    stx tile_stage_addr+1, Y
+
+    tax
+    init_tile_stage_white(Tile_Cursor_BotRight)
+
+    lda #1
+    bit current_color
+    if (not zero)
+    {
+        lda current_command_tile+0
+        sta tmp_addr+0
+        lda current_command_tile+1
+        sta tmp_addr+1
+        overlay_tile_stage_blue_ind()
+    }
+    finalize_tile_stage()
+
+    flush_tile_stage()
 }
 
 /******************************************************************************/
