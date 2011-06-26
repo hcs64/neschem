@@ -412,6 +412,7 @@ inline setup_blue_command_playfield_addr()
     lda cursor_x
     asl A
     adc #1
+    pos_to_nametable()
 }
 
 inline setup_red_command_playfield_addr()
@@ -423,6 +424,7 @@ inline setup_red_command_playfield_addr()
     tax
     lda cursor_x
     asl A
+    pos_to_nametable()
 }
 
 function place_blue_command()
@@ -432,7 +434,6 @@ function place_blue_command()
     sta playfield_blue_cmd, X
 
     setup_blue_command_playfield_addr()
-    pos_to_nametable()
 
     lda current_command_tile+0
     sta tmp_addr+0
@@ -577,7 +578,6 @@ function place_red_command()
     sta playfield_red_cmd, X
 
     setup_red_command_playfield_addr()
-    pos_to_nametable()
 
     lda current_command_tile+0
     sta tmp_addr+0
@@ -720,7 +720,6 @@ function clear_blue_command()
     sta playfield_blue_cmd, X
 
     setup_blue_command_playfield_addr()
-    pos_to_nametable()
 
     pla
     tax
@@ -735,7 +734,6 @@ function clear_red_command()
     sta playfield_red_cmd, X
 
     setup_red_command_playfield_addr()
-    pos_to_nametable()
 
     pla
     tax
