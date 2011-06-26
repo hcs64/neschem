@@ -29,6 +29,7 @@ struct repeat_count_joypad0
 byte test_idx
 byte cursor_x, cursor_y
 pointer current_command
+byte current_color
 
 #define PLAYFIELD_WIDTH     10
 #define PLAYFIELD_HEIGHT    8
@@ -296,10 +297,11 @@ interrupt.start noreturn main()
     lda cursor_y_limit_lookup
     sta cursor_y_limit_flag
 
-    lda #0
+    lda #8
     sta current_command+0
     lda #0
     sta current_command+1
+    sta current_color
 
     forever
     {
@@ -310,18 +312,46 @@ interrupt.start noreturn main()
         and _joypad0
         sta new_joypad0
 
-
+        lda #BUTTON_SELECT
         bit new_joypad0
+        php
 
-        bvc no_test
-        place_red_command()
+        // A
+        bpl no_place
+        lda #1
+        bit current_color
+        if (zero)
+        {
+            place_red_command()
+        }
+        else
+        {
+            place_blue_command()
+        }
         flush_tile_stage()
         jmp no_clear
-no_test:
-        bpl no_clear
-        clear_red_command()
+
+no_place:
+        // B
+        bvc no_clear
+        lda #1
+        bit current_color
+        if (equal)
+        {
+            clear_red_command()
+        }
+        else
+        {
+            clear_blue_command()
+        }
         flush_tile_stage()
+
 no_clear:
+        plp
+        if (not zero)
+        {
+            inc current_color
+        }
 
         cursor_test()
     }
