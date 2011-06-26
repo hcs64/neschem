@@ -29,6 +29,16 @@ struct repeat_count_joypad0
 byte test_idx
 byte cursor_x, cursor_y
 
+#define PLAYFIELD_WIDTH     10
+#define PLAYFIELD_HEIGHT    8
+#define PLAYFIELD_X_START   6
+#define PLAYFIELD_Y_START   4
+#define CURSOR_X_LIMIT_HI_FLAG 0x01
+#define CURSOR_X_LIMIT_LO_FLAG 0x81
+#define CURSOR_Y_LIMIT_HI_FLAG 0x01
+#define CURSOR_Y_LIMIT_LO_FLAG 0x81
+byte cursor_x_limit_flag, cursor_y_limit_flag 
+
 byte tile_buf_1[8]
 byte tile_buf_0[8]
 #ram.end
@@ -60,7 +70,7 @@ byte blue_start_dir
 
 // what display elements are displayed in each cell
 // columns first to compute easier
-byte playfield_blue_flags1[8*10]
+byte playfield_blue_flags1[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
 
 enum pf_flag1 {
     // comefrom
@@ -75,7 +85,7 @@ enum pf_flag1 {
     ar_down = 0x80,
 }
 
-byte playfield_blue_flags2[8*10]
+byte playfield_blue_flags2[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
 
 enum pf_flag2 {
     // adjacent command
@@ -91,7 +101,7 @@ enum pf_flag2 {
 }
 
 // command in each cell
-byte playfield_blue_cmd[8*10]
+byte playfield_blue_cmd[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
 
 #ram.end
 
@@ -100,9 +110,9 @@ byte red_start_x
 byte red_start_y
 byte red_start_dir
 
-byte playfield_red_flags1[8*10]
-byte playfield_red_flags2[8*10]
-byte playfield_red_cmd[8*10]
+byte playfield_red_flags1[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
+byte playfield_red_flags2[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
+byte playfield_red_cmd[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
 #ram.end
 
 #rom.bank BANK_MAIN_ENTRY
@@ -277,10 +287,13 @@ interrupt.start noreturn main()
     //some_tests()
     //flush_tile_stage()
 
-    lda #8
+    lda #0
     sta cursor_x
-    lda #23
     sta cursor_y
+    lda cursor_x_limit_lookup
+    sta cursor_x_limit_flag
+    lda cursor_y_limit_lookup
+    sta cursor_y_limit_flag
 
     forever
     {
@@ -491,84 +504,135 @@ function some_tests()
     } while (not zero)
 }
 
+inline process_X_button(button_mask, button_repeat_count, delta)
+{
+    lda new_joypad0
+    and #button_mask
+    bne do_X_button
+
+    lda button_repeat_count
+    cmp #REPEAT_DELAY
+    bmi skip_X_button
+
+do_X_button:
+    ldx #delta
+    lda #0
+    sta button_repeat_count
+
+skip_X_button:
+}
+
+inline process_Y_button(button_mask, button_repeat_count, delta)
+{
+    lda new_joypad0
+    and #button_mask
+    bne do_Y_button
+
+    lda button_repeat_count
+    cmp #REPEAT_DELAY
+    bmi skip_Y_button
+
+do_Y_button:
+    ldy #delta
+    lda #0
+    sta button_repeat_count
+
+skip_Y_button:
+}
+
+function process_left_button()
+{
+    process_X_button(BUTTON_LEFT, repeat_count_joypad0.LEFT, -1)
+}
+
+function process_right_button()
+{
+    process_X_button(BUTTON_RIGHT, repeat_count_joypad0.RIGHT, 1)
+}
+
+function process_up_button()
+{
+    process_Y_button(BUTTON_UP, repeat_count_joypad0.UP, -1)
+}
+
+function process_down_button()
+{
+    process_Y_button(BUTTON_DOWN, repeat_count_joypad0.DOWN, 1)
+}
+
 function cursor_test()
 {
-    // check for presses
-    lda new_joypad0
     ldx #0
     ldy #0
 
-    and #%00001111
-    cmp #%00001000
-    if (plus)
-    {
-        ldy #-8
-    }
-    and #%00000111
-    cmp #%00000100
-    if (plus)
-    {
-        ldy #8
-    }
-    and #%00000011
-    cmp #%00000010
-    if (plus)
-    {
-        ldx #-8
-    }
-    and #%00000001
-    if (not zero)
-    {
-        ldx #8
-    }
+    lda cursor_x_limit_flag
+    beq no_limit_x
+    bmi at_x_low_limit
+    
+    process_left_button()
+    jmp check_limit_y
 
-    // check for triggered repeats
-    lda repeat_count_joypad0.UP
-    cmp #REPEAT_DELAY
-    if (greater)
-    {
-        lda #0
-        sta repeat_count_joypad0.UP
-        ldy #-8
-    }
-    lda repeat_count_joypad0.DOWN
-    cmp #REPEAT_DELAY
-    if (greater)
-    {
-        lda #0
-        sta repeat_count_joypad0.DOWN
-        ldy #8
-    }
-    lda repeat_count_joypad0.LEFT
-    cmp #REPEAT_DELAY
-    if (greater)
-    {
-        lda #0
-        sta repeat_count_joypad0.LEFT
-        ldx #-8
-    }
-    lda repeat_count_joypad0.RIGHT
-    cmp #REPEAT_DELAY
-    if (greater)
-    {
-        lda #0
-        sta repeat_count_joypad0.RIGHT
-        ldx #8
-    }
+no_limit_x:
+    process_left_button()
+at_x_low_limit:
+    process_right_button()
 
+check_limit_y:
+    lda cursor_y_limit_flag
+    beq no_limit_y
+    bmi at_y_low_limit
+
+    process_up_button()
+    jmp process_new_coords
+
+no_limit_y:
+    process_up_button()
+at_y_low_limit:
+    process_down_button()
+
+process_new_coords:
     stx tmp_byte
     lda cursor_x
     clc
     adc tmp_byte
-    sta oam_buf[0].x
     sta cursor_x
 
+    tax
+    lda cursor_x_limit_lookup, X
+    sta cursor_x_limit_flag
+
+process_new_coords_y:
     sty tmp_byte
     lda cursor_y
     clc
     adc tmp_byte
-    sta oam_buf[0].y
     sta cursor_y
+
+    tay
+    lda cursor_y_limit_lookup, Y
+    sta cursor_y_limit_flag
+
+    // update cursor sprite pos
+
+    lda cursor_x
+    asl A   // each logical block is 2x2
+    clc
+    adc #PLAYFIELD_X_START
+    asl A
+    asl A
+    asl A
+    sta oam_buf[0].x
+
+    lda cursor_y
+    asl A
+    clc
+    adc #PLAYFIELD_Y_START
+    asl A
+    asl A
+    asl A
+    tax
+    dex
+    stx oam_buf[0].y
 
     lda #0
     sta oam_buf[0].attributes
@@ -813,6 +877,16 @@ function pos_to_nametable()
 }
 
 /******************************************************************************/
+
+byte cursor_x_limit_lookup[PLAYFIELD_WIDTH] = {
+    CURSOR_X_LIMIT_LO_FLAG, // X = 0 
+    0, 0, 0, 0, 0, 0, 0, 0, // X = 1, 2, 3, 4, 5, 6, 7, 8
+    CURSOR_X_LIMIT_HI_FLAG} // X = 9
+
+byte cursor_y_limit_lookup[PLAYFIELD_HEIGHT] = {
+    CURSOR_Y_LIMIT_LO_FLAG, // X = 0 
+    0, 0, 0, 0, 0, 0,       // X = 1, 2, 3, 4, 5, 6,
+    CURSOR_Y_LIMIT_HI_FLAG} // X = 7
 
 byte bg_palette[4] = {
                 0x20, // 11: white
