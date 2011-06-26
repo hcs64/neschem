@@ -157,6 +157,47 @@ function flush_tile_stage()
 /******************************************************************************/
 
 // X holds offset
+function set_tile_stage_blue_bg_ind()
+{
+    ldy #8-1
+    do {
+        lda [tmp_addr], Y
+        sta tile_stage, X
+        lda #0xff
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+function set_tile_stage_red_bg_ind()
+{
+    ldy #8-1
+    do {
+        lda #0xff
+        sta tile_stage, X
+        lda [tmp_addr], Y
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+function set_tile_stage_clear()
+{
+    ldy #8-1
+    lda #0
+    do {
+        sta tile_stage, X
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
 inline init_tile_stage_red(tile_addr)
 {
     txa

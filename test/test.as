@@ -28,6 +28,7 @@ struct repeat_count_joypad0
 }
 byte test_idx
 byte cursor_x, cursor_y
+pointer current_command
 
 #define PLAYFIELD_WIDTH     10
 #define PLAYFIELD_HEIGHT    8
@@ -282,7 +283,7 @@ interrupt.start noreturn main()
     ppu_ctl0_assign(#CR_NMI)
     ppu_ctl1_assign(#CR_BACKVISIBLE|CR_SPRITESVISIBLE|CR_BACKNOCLIP|CR_SPRNOCLIP)
 
-    enable_interrupts()
+    //enable_interrupts()
 
     //some_tests()
     //flush_tile_stage()
@@ -295,6 +296,11 @@ interrupt.start noreturn main()
     lda cursor_y_limit_lookup
     sta cursor_y_limit_flag
 
+    lda #0
+    sta current_command+0
+    lda #0
+    sta current_command+1
+
     forever
     {
         lda _joypad0
@@ -304,15 +310,16 @@ interrupt.start noreturn main()
         and _joypad0
         sta new_joypad0
 
+
         bit new_joypad0
 
         bvc no_test
-        some_tests()
+        place_red_command()
         flush_tile_stage()
         jmp no_clear
 no_test:
         bpl no_clear
-        some_clears()
+        clear_red_command()
         flush_tile_stage()
 no_clear:
 
@@ -321,6 +328,89 @@ no_clear:
 }
 
 /******************************************************************************/
+
+inline setup_blue_command_addr()
+{
+    find_free_tile_stage()
+    pha
+    lda cursor_y
+    asl A
+    tax
+    inx
+    lda cursor_x
+    asl A
+    clc
+    adc #1
+    pos_to_nametable()
+}
+
+inline setup_red_command_addr()
+{
+    find_free_tile_stage()
+    pha
+    lda cursor_y
+    asl A
+    tax
+    lda cursor_x
+    asl A
+    pos_to_nametable()
+}
+
+function place_blue_command()
+{
+    setup_blue_command_addr()
+
+    clc
+    lda #lo(Tile_Cmds)
+    adc current_command+0
+    sta tmp_addr+0
+    lda #hi(Tile_Cmds)
+    adc current_command+1
+    sta tmp_addr+1
+
+    pla
+    tax
+    set_tile_stage_blue_bg_ind()
+    finalize_tile_stage()
+}
+
+function place_red_command()
+{
+    setup_red_command_addr()
+
+    clc
+    lda #lo(Tile_Cmds)
+    adc current_command+0
+    sta tmp_addr+0
+    lda #hi(Tile_Cmds)
+    adc current_command+1
+    sta tmp_addr+1
+
+    pla
+    tax
+    set_tile_stage_red_bg_ind()
+    finalize_tile_stage()
+}
+
+function clear_blue_command()
+{
+    setup_blue_command_addr()
+
+    pla
+    tax
+    set_tile_stage_clear()
+    finalize_tile_stage()
+}
+
+function clear_red_command()
+{
+    setup_red_command_addr()
+
+    pla
+    tax
+    set_tile_stage_clear()
+    finalize_tile_stage()
+}
 
 function some_clears()
 {
