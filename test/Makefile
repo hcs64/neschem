@@ -35,7 +35,11 @@ linebotright.imgbin \
 lineh.imgbin \
 linetopleft.imgbin \
 linetopright.imgbin \
-linev.imgbin
+linev.imgbin \
+loopdown.imgbin \
+loopleft.imgbin \
+loopright.imgbin \
+loopup.imgbin
 
 test.nes: test.as tiles.as $(IMAGES)
 	neshla test.as

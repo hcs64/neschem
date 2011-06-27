@@ -156,11 +156,6 @@ function flush_tile_stage()
 
 /******************************************************************************/
 
-// all preserve X unless otherwise specified
-// init:    initially set the stage
-// set:     same as init, but don't preserve X
-// overlay: replace existing pixels
-
 // X holds offset
 function set_tile_stage_blue_bg_ind()
 {
@@ -203,11 +198,8 @@ function set_tile_stage_clear()
 }
 
 // X holds offset
-inline init_tile_stage_white(tile_addr)
+inline set_tile_stage_white(tile_addr)
 {
-    txa
-    pha
-
     ldy #8-1
     do {
         lda tile_addr, Y
@@ -216,17 +208,67 @@ inline init_tile_stage_white(tile_addr)
         dex
         dey
     } while (not minus)
+}
 
-    pla
-    tax
+// X holds offset
+inline overlay_tile_stage_blue_hline(tile_immed, line)
+{
+    lda #tile_immed
+    ora (tile_stage-8)-line, X
+    sta (tile_stage-8)-line, X
+    lda #0xFF^tile_immed
+    and tile_stage-line, X
+    sta tile_stage-line, X
+}
+
+// X holds offset
+inline overlay_tile_stage_red_hline(tile_immed, line)
+{
+    lda #tile_immed
+    ora tile_stage-line, X
+    sta tile_stage-line, X
+    lda #0xFF^tile_immed
+    and (tile_stage-8)-line, X
+    sta (tile_stage-8)-line, X
+}
+
+// X holds offset
+inline overlay_tile_stage_blue(tile_addr)
+{
+    ldy #8-1
+    do {
+        lda tile_addr, Y
+        ora tile_stage-8, X
+        sta tile_stage-8, X
+        lda tile_addr, Y
+        eor #0xFF
+        and tile_stage, X
+        sta tile_stage, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+inline overlay_tile_stage_red(tile_addr)
+{
+    ldy #8-1
+    do {
+        lda tile_addr, Y
+        ora tile_stage, X
+        sta tile_stage, X
+        lda tile_addr, Y
+        eor #0xFF
+        and tile_stage-8, X
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
 }
 
 // X holds offset
 function overlay_tile_stage_blue_ind()
 {
-    txa
-    pha
-
     ldy #8-1
     do {
         lda [tmp_addr], Y
@@ -240,17 +282,11 @@ function overlay_tile_stage_blue_ind()
         dex
         dey
     } while (not minus)
-
-    pla
-    tax
 }
 
 // X holds offset
 function overlay_tile_stage_red_ind()
 {
-    txa
-    pha
-
     ldy #8-1
     do {
         lda [tmp_addr], Y
@@ -264,17 +300,11 @@ function overlay_tile_stage_red_ind()
         dex
         dey
     } while (not minus)
-
-    pla
-    tax
 }
 
 // X holds offset
-inline init_tile_stage_red(tile_addr)
+inline set_tile_stage_red(tile_addr)
 {
-    txa
-    pha
-
     ldy #8-1
     do {
         lda tile_addr, Y
@@ -284,17 +314,11 @@ inline init_tile_stage_red(tile_addr)
         dex
         dey
     } while (not minus)
-
-    pla
-    tax
 }
 
 // X holds offset
-inline init_tile_stage_blue(tile_addr)
+inline set_tile_stage_blue(tile_addr)
 {
-    txa
-    pha
-
     ldy #8-1
     do {
         lda #0
@@ -304,9 +328,6 @@ inline init_tile_stage_blue(tile_addr)
         dex
         dey
     } while (not minus)
-
-    pla
-    tax
 }
 
 /******************************************************************************/
@@ -449,7 +470,6 @@ function write_tile_buf()
 // 8 byte tiles, monochrome, reverse rows
 
 MonoTiles:
-byte Tile_Clear[8] = {0,0,0,0,0,0,0,0}
 
 Tile_ArrowDown:
 #incbin "arrowdown.imgbin"
@@ -493,9 +513,21 @@ Tile_LineTopRight:
 Tile_VLine:
 #incbin "linev.imgbin"
 
+Tile_LoopLeft:
+#incbin "loopleft.imgbin"
+
+Tile_LoopRight:
+#incbin "loopright.imgbin"
+
+Tile_LoopUp:
+#incbin "loopup.imgbin"
+
+Tile_LoopDown:
+#incbin "loopdown.imgbin"
+
 Tile_Cmds:
-struct Tile_Cmds_s
-{
+byte Tile_Clear[8] = {0,0,0,0,0,0,0,0}  // 0, no command, clear
+Tile_CmdAlpha:
 #incbin "cmd_alpha.imgbin"  // 1
 #incbin "cmd_beta.imgbin"   // 2
 #incbin "cmd_bondadd.imgbin"// 3
@@ -507,7 +539,6 @@ struct Tile_Cmds_s
 #incbin "cmd_omega.imgbin"  // 9
 #incbin "cmd_psi.imgbin"    // 10
 #incbin "cmd_start.imgbin"  // 11
-}
 
 Tile_Elements:
 struct Tile_Elements_s
