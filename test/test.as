@@ -462,7 +462,10 @@ function blue_command_update_surroundings()
     lda cursor_x_limit_lookup, X
     beq place_blue_no_right_limit
     bmi place_blue_no_right_limit
-    // TODO: edge
+
+    pla
+    pha
+    update_tile_right_edge()
     jmp place_blue_skip_right
 
 place_blue_no_right_limit:
@@ -481,8 +484,9 @@ place_blue_skip_right:
     lda cursor_y_limit_lookup, Y
     beq place_blue_no_down_limit
     bmi place_blue_no_down_limit
-    // TODO: edge
-    pla // discard
+
+    pla
+    update_tile_bottom_edge()
     jmp place_blue_skip_down
 
 place_blue_no_down_limit:
@@ -519,7 +523,10 @@ function red_command_update_surroundings()
     ldy cursor_y
     lda cursor_x_limit_lookup, X
     bpl place_red_no_left_limit
-    // TODO: edge
+
+    pla
+    pha
+    update_tile_left_edge()
     jmp place_red_skip_left
 
 place_red_no_left_limit:
@@ -537,8 +544,9 @@ place_red_skip_left:
     ldy cursor_y
     lda cursor_y_limit_lookup, Y
     bpl place_red_no_up_limit
-    // TODO: edge
-    pla // discard
+
+    pla
+    update_tile_top_edge()
     jmp place_red_skip_up
 
 place_red_no_up_limit:
@@ -619,322 +627,6 @@ function clear_red_command()
     pla
     red_command_update_surroundings()
 }
-
-/*
-function place_blue_command()
-{
-    calc_cell_offset()
-    lda current_command
-    sta playfield_blue_cmd, X
-
-    setup_blue_command_playfield_addr()
-
-    lda current_command_tile+0
-    sta tmp_addr+0
-    lda current_command_tile+1
-    sta tmp_addr+1
-
-    pla
-    tax
-    set_tile_stage_blue_bg_ind()
-    finalize_tile_stage()
-
-    // left fringe
-    // limit processing not needed for blue
-    find_free_tile_stage()
-    pha
-
-    lda cursor_y
-    asl A
-    tax
-    inx
-    lda cursor_x
-    asl A
-    pos_to_nametable()
-
-    pla
-    tax
-    set_tile_stage_blue(Tile_FringeRight)
-    finalize_tile_stage()
-
-    // right fringe
-    find_free_tile_stage()
-    pha
-    lda cursor_y
-    ldx cursor_x_limit_flag
-
-    beq blue_right_fringe_no_limit
-    bmi blue_right_fringe_no_limit
-        tax
-        and #4
-        lsr A
-        lsr A
-        sta tmp_byte
-        txa
-        and #3 // names repeat past the fold
-        adc #92 // right start
-
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-
-        sta tile_stage_addr+0, Y
-        lda tmp_byte
-        sta tile_stage_addr+1, Y
-
-        jmp blue_right_fringe_done
-blue_right_fringe_no_limit:
-        asl A
-        tax
-        inx
-        lda cursor_x
-        asl A
-        adc #2
-        pos_to_nametable()
-blue_right_fringe_done:
-
-    pla
-    tax
-    set_tile_stage_blue(Tile_FringeLeft)
-    finalize_tile_stage()
-
-    // top fringe
-    // limit processing not needed for blue
-    find_free_tile_stage()
-    pha
-
-    lda cursor_y
-    asl A
-    tax
-    lda cursor_x
-    asl A
-    adc #1
-    pos_to_nametable()
-
-    pla
-    tax
-    set_tile_stage_blue(Tile_FringeBot)
-    finalize_tile_stage()
-
-    // bottom fringe
-    find_free_tile_stage()
-    pha
-    ldx cursor_y_limit_flag
-    beq blue_bot_fringe_no_limit
-    bmi blue_bot_fringe_no_limit
-        // bottom limit fringe can only be in name table 1
-        lda cursor_x
-        clc
-        adc #78 // top start
-        ldx #1
-        stx tmp_byte
-
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-
-        sta tile_stage_addr+0, Y
-        lda tmp_byte
-        sta tile_stage_addr+1, Y
-        jmp blue_bot_fringe_done
-blue_bot_fringe_no_limit:
-        lda cursor_y
-        asl A
-        tax
-        inx
-        inx
-        lda cursor_x
-        asl A
-        adc #1
-        pos_to_nametable()
-blue_bot_fringe_done:
-
-    pla
-    tax
-    set_tile_stage_blue(Tile_FringeTop)
-    finalize_tile_stage()
-}
-
-function place_red_command()
-{
-    calc_command_offset()
-    lda current_command
-    sta playfield_red_cmd, X
-
-    setup_red_command_playfield_addr()
-
-    lda current_command_tile+0
-    sta tmp_addr+0
-    lda current_command_tile+1
-    sta tmp_addr+1
-
-    pla
-    tax
-    set_tile_stage_red_bg_ind()
-    finalize_tile_stage()
-
-    // left fringe
-    find_free_tile_stage()
-    pha
-    lda cursor_y
-    ldx cursor_x_limit_flag
-    if (minus)
-    {
-        tax
-        and #4
-        lsr A
-        lsr A
-        sta tmp_byte
-        txa
-        and #3 // names repeat past the fold
-        adc #88 // left start
-
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-
-        sta tile_stage_addr+0, Y
-        lda tmp_byte
-        sta tile_stage_addr+1, Y
-    }
-    else
-    {
-        asl A
-        tax
-        lda cursor_x
-        asl A
-        sec
-        sbc #1
-        pos_to_nametable()
-    }
-
-    pla
-    tax
-    set_tile_stage_red(Tile_FringeRight)
-    finalize_tile_stage()
-
-    // right fringe
-    // limit processing not needed for red
-    find_free_tile_stage()
-    pha
-
-    lda cursor_y
-    asl A
-    tax
-    lda cursor_x
-    asl A
-    adc #1
-    pos_to_nametable()
-
-    pla
-    tax
-    set_tile_stage_red(Tile_FringeLeft)
-    finalize_tile_stage()
-
-    // top fringe
-    find_free_tile_stage()
-    pha
-    ldx cursor_y_limit_flag
-    if (minus)
-    {
-        // top limit fringe can only be in name table 0
-        lda cursor_x
-        clc
-        adc #78 // top start
-        ldx #0
-        stx tmp_byte
-
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-        asl A
-        rol tmp_byte
-
-        sta tile_stage_addr+0, Y
-        lda tmp_byte
-        sta tile_stage_addr+1, Y
-    }
-    else
-    {
-        lda cursor_y
-        asl A
-        tax
-        dex
-        lda cursor_x
-        asl A
-        pos_to_nametable()
-    }
-
-    pla
-    tax
-    set_tile_stage_red(Tile_FringeBot)
-    finalize_tile_stage()
-
-    // bottom fringe
-    // limit processing not needed for red
-    find_free_tile_stage()
-    pha
-
-    lda cursor_y
-    asl A
-    tax
-    inx
-    lda cursor_x
-    asl A
-    pos_to_nametable()
-
-    pla
-    tax
-    set_tile_stage_red(Tile_FringeTop)
-    finalize_tile_stage()
-}
-
-function clear_blue_command()
-{
-    calc_command_offset()
-    lda #0
-    sta playfield_blue_cmd, X
-
-    setup_blue_command_playfield_addr()
-
-    pla
-    tax
-    set_tile_stage_clear()
-    finalize_tile_stage()
-}
-
-function clear_red_command()
-{
-    calc_command_offset()
-    lda #0
-    sta playfield_red_cmd, X
-
-    setup_red_command_playfield_addr()
-
-    pla
-    tax
-    set_tile_stage_clear()
-    finalize_tile_stage()
-}
-*/
 
 /******************************************************************************/
 
@@ -1104,9 +796,8 @@ skip_vertical_blue_line:
 
 update_tile1_3:
     // 3. blue fringe from above
-    ldx tile_update_playfield_offset
-    dex // above
-    lda playfield_blue_cmd, X
+    //ldx tile_update_playfield_offset
+    lda playfield_blue_cmd-1, X // above
     beq update_tile1_4
 
     ldx tile_update_buf_saved
@@ -1176,11 +867,8 @@ update_tile1_look_right:
 
 update_tile1_8:
     // 8. red fringe from right
-    lda tile_update_playfield_offset
-    clc
-    adc #PLAYFIELD_HEIGHT   // right
-    tax
-    lda playfield_red_cmd, X
+    //ldx tile_update_playfield_offset
+    lda playfield_red_cmd+PLAYFIELD_HEIGHT, X   // right
     beq update_tile1_9
 
     ldx tile_update_buf_saved
@@ -1277,7 +965,7 @@ skip_horizontal_blue_line:
 
 update_tile2_3:
     // 3. blue fringe from left
-    ldx tile_update_playfield_offset
+    //ldx tile_update_playfield_offset
     lda playfield_blue_cmd-PLAYFIELD_HEIGHT, X // left
     beq update_tile2_4
 
@@ -1348,7 +1036,7 @@ update_tile2_look_down:
 
 update_tile2_8:
     // 8. red fringe from below
-    ldx tile_update_playfield_offset
+    //ldx tile_update_playfield_offset
     lda playfield_red_cmd+1, X // below
     beq update_tile2_9
 
@@ -1378,6 +1066,243 @@ update_tile2_10:
     overlay_tile_stage_red_hline(Line_FringeTopBot, 0)
 
 update_tile2_done:
+    finalize_tile_stage()
+}
+
+// A: precomputed offset of the adjacent main cell
+// Y: y coord of both
+function update_tile_left_edge()
+{
+    sta tile_update_playfield_offset
+    sty tile_update_y
+
+    find_free_tile_stage()
+    sta tile_update_buf_saved
+
+    lda tile_update_y
+    and #4
+    lsr A
+    lsr A
+    sta tmp_byte
+    lda tile_update_y
+    and #3 // names repeat past the fold
+    adc #88 // left start
+
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+
+    sta tile_stage_addr+0, Y
+    lda tmp_byte
+    sta tile_stage_addr+1, Y
+
+    ldx tile_update_buf_saved
+    set_tile_stage_clear()
+
+    // 7. red left arrow from right
+    ldx tile_update_playfield_offset
+    lda playfield_red_flags2, X
+    and #pf_flag2.ar_left
+    beq update_tile_left_edge_8
+
+    ldx tile_update_buf_saved
+    set_tile_stage_red(Tile_ArrowLeft)
+
+    // skip corresponding fringe
+    jmp update_tile_left_edge_done
+
+update_tile_left_edge_8:
+    // 8. red fringe from right
+    //ldx tile_update_playfield_offset
+    lda playfield_red_cmd, X
+    beq update_tile_left_edge_done
+
+    ldx tile_update_buf_saved
+    set_tile_stage_red(Tile_FringeRight)
+
+update_tile_left_edge_done:
+    finalize_tile_stage()
+}
+
+// A: precomputed offset of the adjacent main cell
+// X: x coord of both
+function update_tile_top_edge()
+{
+    stx tile_update_x
+    sta tile_update_playfield_offset
+
+    find_free_tile_stage()
+    sta tile_update_buf_saved
+
+    // top limit fringe can only be in name table 0
+    lda tile_update_x
+    clc
+    adc #78 // top start
+    ldx #0
+    stx tmp_byte
+
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+
+    sta tile_stage_addr+0, Y
+    lda tmp_byte
+    sta tile_stage_addr+1, Y
+
+    ldx tile_update_buf_saved
+    set_tile_stage_clear()
+
+    // 7. red up arrow from below
+    ldx tile_update_playfield_offset
+    lda playfield_red_flags2, X
+    and #pf_flag2.ar_up
+    beq update_tile_top_edge_8
+
+    ldx tile_update_buf_saved
+    set_tile_stage_red(Tile_ArrowUp)
+
+    // skip corresponding fringe
+    jmp update_tile_top_edge_done
+
+update_tile_top_edge_8:
+    // 8. red fringe from below
+    //ldx tile_update_playfield_offset
+    lda playfield_red_cmd, X
+    beq update_tile_top_edge_done
+
+    ldx tile_update_buf_saved
+    overlay_tile_stage_red_hline(Line_FringeTopBot, 7)
+
+update_tile_top_edge_done:
+    finalize_tile_stage()
+}
+
+
+// A: precomputed offset of the adjacent main cell
+// Y: y coord of both
+function update_tile_right_edge()
+{
+    sta tile_update_y
+    sta tile_update_playfield_offset
+
+    find_free_tile_stage()
+    sta tile_update_buf_saved
+
+    lda tile_update_y
+    and #4
+    lsr A
+    lsr A
+    sta tmp_byte
+    lda tile_update_y
+    and #3 // names repeat past the fold
+    adc #92 // right start
+
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+
+    sta tile_stage_addr+0, Y
+    lda tmp_byte
+    sta tile_stage_addr+1, Y
+
+    ldx tile_update_buf_saved
+    set_tile_stage_clear()
+
+    // 2. blue right arrow from left
+    ldx tile_update_playfield_offset
+    lda playfield_blue_flags2, X
+    and #pf_flag2.ar_right
+    beq update_tile_right_edge_3
+
+    ldx tile_update_buf_saved
+    set_tile_stage_blue(Tile_ArrowRight)
+
+    // skip corresponding fringe
+    jmp update_tile_right_edge_done
+
+update_tile_right_edge_3:
+    // 3. blue fringe from left
+    //ldx tile_update_playfield_offset
+    lda playfield_blue_cmd, X
+    beq update_tile_right_edge_done
+
+    ldx tile_update_buf_saved
+    set_tile_stage_blue(Tile_FringeLeft)
+
+update_tile_right_edge_done:
+    finalize_tile_stage()
+}
+
+// A: precomputed offset of the adjacent main cell
+// X: x coord of both
+function update_tile_bottom_edge()
+{
+    stx tile_update_x
+    sta tile_update_playfield_offset
+
+    find_free_tile_stage()
+    sta tile_update_buf_saved
+
+    // bottom limit fringe can only be in name table 1
+    lda tile_update_x
+    clc
+    adc #78 // top start
+    ldx #1
+    stx tmp_byte
+
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+    asl A
+    rol tmp_byte
+
+    sta tile_stage_addr+0, Y
+    lda tmp_byte
+    sta tile_stage_addr+1, Y
+
+    ldx tile_update_buf_saved
+    set_tile_stage_clear()
+
+    // 2. blue down arrow from above
+    ldx tile_update_playfield_offset
+    lda playfield_blue_flags2, X
+    and #pf_flag2.ar_down
+    beq update_tile_bottom_edge_3
+
+    ldx tile_update_buf_saved
+    set_tile_stage_blue(Tile_ArrowDown)
+
+    // skip corresponding fringe
+    jmp update_tile_bottom_edge_done
+
+update_tile_bottom_edge_3:
+    // 3. blue fringe from above
+    //ldx tile_update_playfield_offset
+    lda playfield_blue_cmd, X
+    beq update_tile_bottom_edge_done
+
+    ldx tile_update_buf_saved
+    overlay_tile_stage_blue_hline(Line_FringeTopBot, 0)
+
+update_tile_bottom_edge_done:
     finalize_tile_stage()
 }
 
