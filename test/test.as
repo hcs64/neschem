@@ -102,6 +102,7 @@ enum pf_flag1 {
     redir_right = 0x20,
     redir_up    = 0x40,
     redir_down  = 0x80,
+    redir_any   = 0xF0,
 }
 
 byte playfield_blue_flags2[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
@@ -603,6 +604,7 @@ function clear_blue_command()
     txa
     pha
 
+    lda playfield_blue_flags1, X
     ldx cursor_x
     ldy cursor_y
     update_tile3_lines()
@@ -620,6 +622,7 @@ function clear_red_command()
     txa
     pha
 
+    lda playfield_red_flags1, X
     ldx cursor_x
     ldy cursor_y
     update_tile0_lines()
@@ -650,17 +653,130 @@ function setup_tile0()
     pos_to_nametable()
 }
 
-// A: precomputed cell table offset
+// A: flags1
 // X: x coord
 // Y: y coord
 function update_tile0_lines()
 {
-    sta tile_update_playfield_offset
+    sta tile_update_playfield_offset // used for flags1 here
     setup_tile0()
 
-    // TODO: lines!
     ldx tile_update_buf_saved
     set_tile_stage_clear()
+
+    // a few common line cases
+    ldx tile_update_buf_saved
+    lda tile_update_playfield_offset
+    cmp #0x10   // redirect is in high bits
+    bpl tile0_lines_has_redir
+
+    // no redir, could be straight through
+    and #pf_flag1.cf_left|pf_flag1.cf_right
+    beq tile0_no_straight_h
+    overlay_on_red_tile_stage_midhline() // preserves X
+tile0_no_straight_h:
+
+    lda tile_update_playfield_offset
+    and #pf_flag1.cf_top|pf_flag1.cf_bot
+    beq tile0_no_straight_v
+    overlay_on_red_tile_stage_midvline()
+tile0_no_straight_v:
+
+    // skip any other processing since we have no redir to make curves
+    jmp tile0_lines_done
+    
+tile0_lines_has_redir:
+
+#tell.bankoffset
+    eor #0xFF   // reverse bits in order to check which are *set* with beq
+
+    bit cf_left_redir_right
+    beq tile0_pushed_h
+
+    bit cf_right_redir_left
+    bne tile0_no_pushed_h
+
+tile0_pushed_h:
+    overlay_on_red_tile_stage_midhline() // preserves X and A
+
+tile0_no_pushed_h:
+    bit cf_top_redir_down
+    beq tile0_pushed_v
+
+    bit cf_bot_redir_up
+    bne tile0_no_pushed_v
+
+tile0_pushed_v:
+    //overlay_on_red_tile_stage_midvline()
+
+tile0_no_pushed_v:
+
+    lda tile_update_playfield_offset
+    tax
+    and #0xF
+    tay
+    txa
+    and times_16, Y
+
+    beq tile0_no_loops
+
+    sta tmp_byte
+    asl tmp_byte
+    if (carry)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_red_tile_stage(Tile_LoopDown)
+    }
+    asl tmp_byte
+    if (carry)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_red_tile_stage(Tile_LoopUp)
+    }
+    asl tmp_byte
+    if (carry)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_red_tile_stage(Tile_LoopRight)
+    }
+    lda tmp_byte
+    if (minus)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_red_tile_stage(Tile_LoopLeft)
+    }
+
+tile0_no_loops:
+    
+    lda tile_update_playfield_offset
+    eor #0xFF
+    sta tile_update_playfield_offset
+    lda #8-1
+    sta tmp_byte
+    do {
+        ldx tmp_byte
+        lda corner_masks, X
+        and tile_update_playfield_offset
+        bne tile0_skip_corner
+
+        lda tmp_byte
+        and #~1
+        asl A
+        asl A
+        clc
+        adc #lo(Tile_LineCorners)
+        sta tmp_addr+0
+        lda #0
+        adc #hi(Tile_LineCorners)
+        sta tmp_addr+1
+
+        ldx tile_update_buf_saved
+        overlay_on_red_tile_stage_ind()
+
+tile0_skip_corner:
+        dec tmp_byte
+    } while (not minus)
+tile0_lines_done:
     finalize_tile_stage()
 }
 
@@ -702,7 +818,7 @@ function setup_tile3()
     pos_to_nametable()
 }
 
-// A: precomputed cell table offset
+// A: flags1
 // X: x coord
 // Y: y coord
 function update_tile3_lines()
@@ -710,9 +826,122 @@ function update_tile3_lines()
     sta tile_update_playfield_offset
     setup_tile3()
 
-    // TODO: lines!
     ldx tile_update_buf_saved
     set_tile_stage_clear()
+
+    // a few common line cases
+    ldx tile_update_buf_saved
+    lda tile_update_playfield_offset
+    cmp #0x10   // redirect is in high bits
+    bpl tile3_lines_has_redir
+
+    // no redir, could be straight through
+    and #pf_flag1.cf_left|pf_flag1.cf_right
+    beq tile3_no_straight_h
+    overlay_on_blue_tile_stage_midhline() // preserves X
+tile3_no_straight_h:
+
+    lda tile_update_playfield_offset
+    and #pf_flag1.cf_top|pf_flag1.cf_bot
+    beq tile3_no_straight_v
+    overlay_on_blue_tile_stage_midvline()
+tile3_no_straight_v:
+
+    // skip any other processing since we have no redir to make curves
+    jmp tile3_lines_done
+    
+tile3_lines_has_redir:
+
+#tell.bankoffset
+    eor #0xFF   // reverse bits in order to check which are *set* with beq
+
+    bit cf_left_redir_right
+    beq tile3_pushed_h
+
+    bit cf_right_redir_left
+    bne tile3_no_pushed_h
+
+tile3_pushed_h:
+    overlay_on_blue_tile_stage_midhline() // preserves X and A
+
+tile3_no_pushed_h:
+    bit cf_top_redir_down
+    beq tile3_pushed_v
+
+    bit cf_bot_redir_up
+    bne tile3_no_pushed_v
+
+tile3_pushed_v:
+    overlay_on_blue_tile_stage_midvline()
+
+tile3_no_pushed_v:
+
+    lda tile_update_playfield_offset
+    tax
+    and #0xF
+    tay
+    txa
+    and times_16, Y
+
+    beq tile3_no_loops
+
+    sta tmp_byte
+    asl tmp_byte
+    if (carry)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_blue_tile_stage(Tile_LoopDown)
+    }
+    asl tmp_byte
+    if (carry)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_blue_tile_stage(Tile_LoopUp)
+    }
+    asl tmp_byte
+    if (carry)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_blue_tile_stage(Tile_LoopRight)
+    }
+    lda tmp_byte
+    if (minus)
+    {
+        ldx tile_update_buf_saved
+        overlay_on_blue_tile_stage(Tile_LoopLeft)
+    }
+
+tile3_no_loops:
+    
+    lda tile_update_playfield_offset
+    eor #0xFF
+    sta tile_update_playfield_offset
+    lda #8-1
+    sta tmp_byte
+    do {
+        ldx tmp_byte
+        lda corner_masks, X
+        and tile_update_playfield_offset
+        bne tile3_skip_corner
+
+        lda tmp_byte
+        and #~1
+        asl A
+        asl A
+        clc
+        adc #lo(Tile_LineCorners)
+        sta tmp_addr+0
+        lda #0
+        adc #hi(Tile_LineCorners)
+        sta tmp_addr+1
+
+        ldx tile_update_buf_saved
+        overlay_on_blue_tile_stage_ind()
+
+tile3_skip_corner:
+        dec tmp_byte
+    } while (not minus)
+tile3_lines_done:
     finalize_tile_stage()
 }
 
@@ -827,7 +1056,7 @@ update_tile1_5:
 
 update_tile1_6:
     // 6. horizontal red line
-    // red comefrom right OR (any comefrom and redir up)
+    // red comefrom right OR (any comefrom and redir right)
     ldy tile_update_playfield_offset
 
     ldx playfield_red_flags1, Y
@@ -838,8 +1067,8 @@ update_tile1_6:
     and #pf_flag1.cf_any
     beq update_tile1_7          // no comefrom
     txa
-    and #pf_flag1.redir_left
-    beq update_tile1_7          // not redir left
+    and #pf_flag1.redir_right
+    beq update_tile1_7          // not redir right
 
 do_update_tile1_6:
     ldx tile_update_buf_saved
@@ -1497,7 +1726,7 @@ function init_playfield()
 
     lda #pf_flag1.cf_left|pf_flag1.redir_up
     sta playfield_blue_flags1[2*8+2]
-    lda #pf_flag1.cf_right
+    lda #pf_flag1.cf_top|pf_flag1.cf_bot|pf_flag1.redir_right
     sta playfield_red_flags1[2*8+2]
 }
 
@@ -1860,6 +2089,70 @@ byte cursor_y_limit_lookup[PLAYFIELD_HEIGHT] = {
     CURSOR_Y_LIMIT_LO_FLAG, // X = 0 
     0, 0, 0, 0, 0, 0,       // X = 1, 2, 3, 4, 5, 6,
     CURSOR_Y_LIMIT_HI_FLAG} // X = 7
+
+byte times_16[16] = {
+    0x00,0x10,0x20,0x30,0x40,0x50,0x60,0x70,
+    0x80,0x90,0xA0,0xB0,0xC0,0xD0,0xE0,0xF0}
+
+/*
+byte times_8[16] = {
+    0x00,0x08,0x10,0x18,0x20,0x28,0x30,0x38,
+    0x40,0x48,0x50,0x58,0x60,0x68,0x70,0x78}
+*/
+/*
+byte cf_to_op_redir[16] = {
+  // 0000
+    %00000000,
+  // 0001
+    %00100000,
+  // 0010
+    %00010000,
+  // 0011
+    %00110000,
+  // 0100
+    %10000000,
+  // 0101
+    %10100000,
+  // 0110
+    %10010000,
+  // 0111
+    %10110000,
+  // 1000
+    %01000000,
+  // 1001
+    %01100000,
+  // 1010
+    %01010000,
+  // 1011
+    %01110000,
+  // 1100
+    %11000000,
+  // 1101
+    %11100000,
+  // 1110
+    %11010000,
+  // 1111
+    %11110000}
+*/
+
+byte corner_masks[8] = {
+    // bottom left
+    pf_flag1.redir_left |   pf_flag1.cf_bot,
+    pf_flag1.redir_down |   pf_flag1.cf_left,
+    // bottom right
+    pf_flag1.redir_right|   pf_flag1.cf_bot,
+    pf_flag1.redir_down |   pf_flag1.cf_right,
+    // top left
+    pf_flag1.redir_left |   pf_flag1.cf_top,
+    pf_flag1.redir_up   |   pf_flag1.cf_left,
+    // top right
+    pf_flag1.redir_right|   pf_flag1.cf_top,
+    pf_flag1.redir_up   |   pf_flag1.cf_right}
+
+byte cf_left_redir_right[] = {pf_flag1.cf_left|pf_flag1.redir_right}
+byte cf_right_redir_left[] = {pf_flag1.cf_right|pf_flag1.redir_left}
+byte cf_top_redir_down[] = {pf_flag1.cf_top|pf_flag1.redir_down}
+byte cf_bot_redir_up[] = {pf_flag1.cf_bot|pf_flag1.redir_up}
 
 byte bg_palette[4] = {
                 0x20, // 11: white

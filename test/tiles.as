@@ -149,6 +149,9 @@ function flush_tile_stage()
             dex
         } while (not minus)
 
+        // store the now-negative index
+        stx next_stage_index
+
         // and pass off control to the nmi
         sta tile_stage_written // nmi needs to write
     }
@@ -233,6 +236,74 @@ inline overlay_tile_stage_red_hline(tile_immed, line)
 }
 
 // X holds offset
+inline overlay_on_red_tile_stage_midhline()
+{
+    ldy #0xFF
+    sty tile_stage-3, X
+    sty tile_stage-4, X
+}
+
+// X holds offset
+inline overlay_on_blue_tile_stage_midhline()
+{
+    ldy #0xFF
+    sty tile_stage-3-8, X
+    sty tile_stage-4-8, X
+}
+
+// X holds offset
+inline overlay_on_red_tile_stage_midvline()
+{
+    ldy #8-1
+    do {
+        lda tile_stage, X
+        ora #0x18
+        sta tile_stage, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+inline overlay_on_blue_tile_stage_midvline()
+{
+    ldy #8-1
+    do {
+        lda tile_stage-8, X
+        ora #0x18
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+inline overlay_on_red_tile_stage(tile_addr)
+{
+    ldy #8-1
+    do {
+        lda tile_addr, Y
+        ora tile_stage, X
+        sta tile_stage, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+inline overlay_on_blue_tile_stage(tile_addr)
+{
+    ldy #8-1
+    do {
+        lda tile_addr, Y
+        ora tile_stage-8, X
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
 inline overlay_tile_stage_blue(tile_addr)
 {
     ldy #8-1
@@ -297,6 +368,32 @@ function overlay_tile_stage_red_ind()
         eor #0xFF
         and tile_stage-8, X
         sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+function overlay_on_blue_tile_stage_ind()
+{
+    ldy #8-1
+    do {
+        lda [tmp_addr], Y
+        ora tile_stage-8, X
+        sta tile_stage-8, X
+        dex
+        dey
+    } while (not minus)
+}
+
+// X holds offset
+function overlay_on_red_tile_stage_ind()
+{
+    ldy #8-1
+    do {
+        lda [tmp_addr], Y
+        ora tile_stage, X
+        sta tile_stage, X
         dex
         dey
     } while (not minus)
@@ -495,20 +592,14 @@ Tile_FringeRight:
 Tile_FringeTop:
 #incbin "fringetop.imgbin"
 
-Tile_LineBotLeft:
+Tile_LineCorners:
 #incbin "linebotleft.imgbin"
-
-Tile_LineBotRight:
 #incbin "linebotright.imgbin"
+#incbin "linetopleft.imgbin"
+#incbin "linetopright.imgbin"
 
 Tile_HLine:
 #incbin "lineh.imgbin"
-
-Tile_LineTopLeft:
-#incbin "linetopleft.imgbin"
-
-Tile_LineTopRight:
-#incbin "linetopright.imgbin"
 
 Tile_VLine:
 #incbin "linev.imgbin"
