@@ -236,7 +236,7 @@ inline overlay_tile_stage_red_hline(tile_immed, line)
 }
 
 // X holds offset
-inline overlay_on_red_tile_stage_midhline()
+inline overlay_mono_tile_stage_midhline()
 {
     ldy #0xFF
     sty tile_stage-3, X
@@ -244,15 +244,7 @@ inline overlay_on_red_tile_stage_midhline()
 }
 
 // X holds offset
-inline overlay_on_blue_tile_stage_midhline()
-{
-    ldy #0xFF
-    sty tile_stage-3-8, X
-    sty tile_stage-4-8, X
-}
-
-// X holds offset
-inline overlay_on_red_tile_stage_midvline()
+inline overlay_mono_tile_stage_midvline()
 {
     ldy #8-1
     do {
@@ -265,39 +257,13 @@ inline overlay_on_red_tile_stage_midvline()
 }
 
 // X holds offset
-inline overlay_on_blue_tile_stage_midvline()
-{
-    ldy #8-1
-    do {
-        lda tile_stage-8, X
-        ora #0x18
-        sta tile_stage-8, X
-        dex
-        dey
-    } while (not minus)
-}
-
-// X holds offset
-inline overlay_on_red_tile_stage(tile_addr)
+inline overlay_mono_tile_stage(tile_addr)
 {
     ldy #8-1
     do {
         lda tile_addr, Y
         ora tile_stage, X
         sta tile_stage, X
-        dex
-        dey
-    } while (not minus)
-}
-
-// X holds offset
-inline overlay_on_blue_tile_stage(tile_addr)
-{
-    ldy #8-1
-    do {
-        lda tile_addr, Y
-        ora tile_stage-8, X
-        sta tile_stage-8, X
         dex
         dey
     } while (not minus)
@@ -374,20 +340,7 @@ function overlay_tile_stage_red_ind()
 }
 
 // X holds offset
-function overlay_on_blue_tile_stage_ind()
-{
-    ldy #8-1
-    do {
-        lda [tmp_addr], Y
-        ora tile_stage-8, X
-        sta tile_stage-8, X
-        dex
-        dey
-    } while (not minus)
-}
-
-// X holds offset
-function overlay_on_red_tile_stage_ind()
+function overlay_mono_tile_stage_ind()
 {
     ldy #8-1
     do {

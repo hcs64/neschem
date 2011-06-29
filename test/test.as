@@ -656,7 +656,7 @@ function setup_tile0()
 // A: flags1
 // X: x coord
 // Y: y coord
-function update_tile0_lines()
+function noreturn update_tile0_lines()
 {
     sta tile_update_playfield_offset // used for flags1 here
     setup_tile0()
@@ -664,52 +664,56 @@ function update_tile0_lines()
     ldx tile_update_buf_saved
     set_tile_stage_clear()
 
+    jmp update_tile03_lines
+}
+
+function update_tile03_lines()
+{
     // a few common line cases
     ldx tile_update_buf_saved
     lda tile_update_playfield_offset
     cmp #0x10   // redirect is in high bits
-    bpl tile0_lines_has_redir
+    bpl tile03_lines_has_redir
 
     // no redir, could be straight through
     and #pf_flag1.cf_left|pf_flag1.cf_right
-    beq tile0_no_straight_h
-    overlay_on_red_tile_stage_midhline() // preserves X
-tile0_no_straight_h:
+    beq tile03_no_straight_h
+    overlay_mono_tile_stage_midhline() // preserves X
+tile03_no_straight_h:
 
     lda tile_update_playfield_offset
     and #pf_flag1.cf_top|pf_flag1.cf_bot
-    beq tile0_no_straight_v
-    overlay_on_red_tile_stage_midvline()
-tile0_no_straight_v:
+    beq tile03_no_straight_v
+    overlay_mono_tile_stage_midvline()
+tile03_no_straight_v:
 
     // skip any other processing since we have no redir to make curves
-    jmp tile0_lines_done
+    jmp tile03_lines_done
     
-tile0_lines_has_redir:
+tile03_lines_has_redir:
 
-#tell.bankoffset
     eor #0xFF   // reverse bits in order to check which are *set* with beq
 
     bit cf_left_redir_right
-    beq tile0_pushed_h
+    beq tile03_pushed_h
 
     bit cf_right_redir_left
-    bne tile0_no_pushed_h
+    bne tile03_no_pushed_h
 
-tile0_pushed_h:
-    overlay_on_red_tile_stage_midhline() // preserves X and A
+tile03_pushed_h:
+    overlay_mono_tile_stage_midhline() // preserves X and A
 
-tile0_no_pushed_h:
+tile03_no_pushed_h:
     bit cf_top_redir_down
-    beq tile0_pushed_v
+    beq tile03_pushed_v
 
     bit cf_bot_redir_up
-    bne tile0_no_pushed_v
+    bne tile03_no_pushed_v
 
-tile0_pushed_v:
-    //overlay_on_red_tile_stage_midvline()
+tile03_pushed_v:
+    overlay_mono_tile_stage_midvline()
 
-tile0_no_pushed_v:
+tile03_no_pushed_v:
 
     lda tile_update_playfield_offset
     tax
@@ -718,35 +722,35 @@ tile0_no_pushed_v:
     txa
     and times_16, Y
 
-    beq tile0_no_loops
+    beq tile03_no_loops
 
     sta tmp_byte
     asl tmp_byte
     if (carry)
     {
         ldx tile_update_buf_saved
-        overlay_on_red_tile_stage(Tile_LoopDown)
+        overlay_mono_tile_stage(Tile_LoopDown)
     }
     asl tmp_byte
     if (carry)
     {
         ldx tile_update_buf_saved
-        overlay_on_red_tile_stage(Tile_LoopUp)
+        overlay_mono_tile_stage(Tile_LoopUp)
     }
     asl tmp_byte
     if (carry)
     {
         ldx tile_update_buf_saved
-        overlay_on_red_tile_stage(Tile_LoopRight)
+        overlay_mono_tile_stage(Tile_LoopRight)
     }
     lda tmp_byte
     if (minus)
     {
         ldx tile_update_buf_saved
-        overlay_on_red_tile_stage(Tile_LoopLeft)
+        overlay_mono_tile_stage(Tile_LoopLeft)
     }
 
-tile0_no_loops:
+tile03_no_loops:
     
     lda tile_update_playfield_offset
     eor #0xFF
@@ -757,7 +761,7 @@ tile0_no_loops:
         ldx tmp_byte
         lda corner_masks, X
         and tile_update_playfield_offset
-        bne tile0_skip_corner
+        bne tile03_skip_corner
 
         lda tmp_byte
         and #~1
@@ -771,12 +775,12 @@ tile0_no_loops:
         sta tmp_addr+1
 
         ldx tile_update_buf_saved
-        overlay_on_red_tile_stage_ind()
+        overlay_mono_tile_stage_ind()
 
-tile0_skip_corner:
+tile03_skip_corner:
         dec tmp_byte
     } while (not minus)
-tile0_lines_done:
+tile03_lines_done:
     finalize_tile_stage()
 }
 
@@ -821,128 +825,19 @@ function setup_tile3()
 // A: flags1
 // X: x coord
 // Y: y coord
-function update_tile3_lines()
+function noreturn update_tile3_lines()
 {
     sta tile_update_playfield_offset
     setup_tile3()
 
-    ldx tile_update_buf_saved
+    lda tile_update_buf_saved
+    tax
+    sec
+    sbc #8
+    sta tile_update_buf_saved
     set_tile_stage_clear()
 
-    // a few common line cases
-    ldx tile_update_buf_saved
-    lda tile_update_playfield_offset
-    cmp #0x10   // redirect is in high bits
-    bpl tile3_lines_has_redir
-
-    // no redir, could be straight through
-    and #pf_flag1.cf_left|pf_flag1.cf_right
-    beq tile3_no_straight_h
-    overlay_on_blue_tile_stage_midhline() // preserves X
-tile3_no_straight_h:
-
-    lda tile_update_playfield_offset
-    and #pf_flag1.cf_top|pf_flag1.cf_bot
-    beq tile3_no_straight_v
-    overlay_on_blue_tile_stage_midvline()
-tile3_no_straight_v:
-
-    // skip any other processing since we have no redir to make curves
-    jmp tile3_lines_done
-    
-tile3_lines_has_redir:
-
-#tell.bankoffset
-    eor #0xFF   // reverse bits in order to check which are *set* with beq
-
-    bit cf_left_redir_right
-    beq tile3_pushed_h
-
-    bit cf_right_redir_left
-    bne tile3_no_pushed_h
-
-tile3_pushed_h:
-    overlay_on_blue_tile_stage_midhline() // preserves X and A
-
-tile3_no_pushed_h:
-    bit cf_top_redir_down
-    beq tile3_pushed_v
-
-    bit cf_bot_redir_up
-    bne tile3_no_pushed_v
-
-tile3_pushed_v:
-    overlay_on_blue_tile_stage_midvline()
-
-tile3_no_pushed_v:
-
-    lda tile_update_playfield_offset
-    tax
-    and #0xF
-    tay
-    txa
-    and times_16, Y
-
-    beq tile3_no_loops
-
-    sta tmp_byte
-    asl tmp_byte
-    if (carry)
-    {
-        ldx tile_update_buf_saved
-        overlay_on_blue_tile_stage(Tile_LoopDown)
-    }
-    asl tmp_byte
-    if (carry)
-    {
-        ldx tile_update_buf_saved
-        overlay_on_blue_tile_stage(Tile_LoopUp)
-    }
-    asl tmp_byte
-    if (carry)
-    {
-        ldx tile_update_buf_saved
-        overlay_on_blue_tile_stage(Tile_LoopRight)
-    }
-    lda tmp_byte
-    if (minus)
-    {
-        ldx tile_update_buf_saved
-        overlay_on_blue_tile_stage(Tile_LoopLeft)
-    }
-
-tile3_no_loops:
-    
-    lda tile_update_playfield_offset
-    eor #0xFF
-    sta tile_update_playfield_offset
-    lda #8-1
-    sta tmp_byte
-    do {
-        ldx tmp_byte
-        lda corner_masks, X
-        and tile_update_playfield_offset
-        bne tile3_skip_corner
-
-        lda tmp_byte
-        and #~1
-        asl A
-        asl A
-        clc
-        adc #lo(Tile_LineCorners)
-        sta tmp_addr+0
-        lda #0
-        adc #hi(Tile_LineCorners)
-        sta tmp_addr+1
-
-        ldx tile_update_buf_saved
-        overlay_on_blue_tile_stage_ind()
-
-tile3_skip_corner:
-        dec tmp_byte
-    } while (not minus)
-tile3_lines_done:
-    finalize_tile_stage()
+    jmp update_tile03_lines
 }
 
 // X: x coord
