@@ -130,6 +130,24 @@ byte playfield_red_flags2[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
 byte playfield_red_cmd[PLAYFIELD_HEIGHT*PLAYFIELD_WIDTH]
 #ram.end
 
+#ram.org 0x500, 0x100
+
+enum rp_flags {
+    go_left = 0x00,
+    go_right= 0x02,
+    go_up   = 0x04,
+    go_down = 0x06,
+
+    blue    = 0x08,
+
+    set_mode    = 0x1
+}
+// it is major overkill to reserve all this, but it is only used by one
+// operation so we can reuse it for other large ops
+render_path_stack:
+byte render_path_stack_pointer :0x5FF
+#ram.end
+
 #rom.bank BANK_MAIN_ENTRY
 #rom.org 0xC000
 
@@ -1615,21 +1633,190 @@ function init_playfield()
     lda #6
     sta blue_start_y
 
-    lda #pf_flag1.redir_left
+    lda #rp_flags.go_left|rp_flags.set_mode
     sta red_start_dir
     sta blue_start_dir
 
-    lda #pf_flag1.cf_left|pf_flag1.redir_up
-    sta playfield_blue_flags1[2*8+2]
-    lda #pf_flag1.cf_top|pf_flag1.cf_bot|pf_flag1.redir_right
-    sta playfield_red_flags1[2*8+2]
+    //lda #pf_flag1.cf_left
+    //sta playfield_blue_flags1[2*8+2]
+    //lda #pf_flag1.cf_top|pf_flag1.cf_bot|pf_flag1.redir_right
+    //sta playfield_red_flags1[2*8+2]
 }
 
 /******************************************************************************/
 
 function render_paths()
 {
-    reset_paths()
+    lda red_start_y
+    sta render_path_stack+1
+    lda red_start_x
+    sta render_path_stack+0
+    lda red_start_dir
+    sta render_path_stack+2
+
+    lda #3
+    sta render_path_stack_pointer
+
+    jmp path_reader_do_stack
+
+path_render_continue:
+
+    // generate the new directions based on what's currently on top of the stack
+    // A should be flags1 of that cell
+
+    sta tmp_byte
+    and #pf_flags.redir_any
+    beq path_reader_continue
+
+    ldx render_path_stack_pointer
+    lda render_path_stack+2, X
+
+
+path_reader_do_stack:
+    // process the top of the stack
+
+    ldy render_path_stack_pointer
+    beq render_paths_done
+    dey
+    dey
+    dey
+    sty render_path_stack_pointer
+
+    lda render_path_stack+2, Y
+    and #0x1E
+    tax
+    lda render_path_jump_table+1, X
+    pha 
+    lda render_path_jump_table+0, X
+    pha
+
+    // compute offset
+    lda render_path_stack+0, Y
+    asl A
+    asl A
+    asl A
+    // carry clear
+    adc render_path_stack+1, Y
+    tax
+    lda render_path_stack+2, Y
+    and #rp_flags.set_mode
+    tay
+
+render_paths_done:
+    // rts here both returns from render paths and does the jump table jump
+}
+
+// X has playfield offset, Y has "set" flag
+function noreturn path_red_left()
+{
+    // going left, check for different comefrom right
+    lda playfield_red_flags1, X
+    cpy #rp_flags.set_mode
+    if (equal)
+    {
+        // different would be 0
+        eor #pf_flags1.cf_right
+    }
+    and #pf_flags1.cf_right
+    beq path_reader_do_stack // don't bother following up on this
+
+    txa
+    pha
+
+    // skip tile 0 if there is a command
+    ldy playfield_red_cmd, X
+    bne path_red_left_skip_0
+
+    path_stack_tile0()
+
+path_red_left_skip_0:
+
+    pla
+    pha
+
+    // we're coming from the right, so possibly a new tile1
+    path_stack_tile1()
+
+    // if redir down there's possibly a new tile2
+    pla
+    pha
+
+    tax
+    lda playfield_red_flags1, X
+    and #pf_flag1.redir_down
+    beq path_red_left_skip_2
+
+    txa
+    path_stack_tile2()
+
+path_red_left_skip_2:
+
+    // make our mark
+    pla
+    tax
+    ldy render_path_stack_pointer
+    lda render_path_stack+2, Y
+    tay
+
+    lda playfield_red_flags1, X
+
+    cpy #rp_flags.set_mode
+    if (equal)
+    {
+        ora #pf_flags.cf_right
+    }
+    else
+    {
+        and #~pf_flags.cf_right
+    }
+    sta playfield_red_flags1, X
+
+    jmp path_render_continue
+}
+
+// A already has playfield offset
+function path_stack_tile0()
+{
+    ldx render_path_stack_pointer
+    ldy render_path_stack+0, X
+    sty tmp_byte
+    ldy render_path_stack+1, X
+    tax
+    lda playfield_red_flags1, X
+    ldx tmp_byte
+    update_tile0_lines()
+}
+
+function path_stack_tile3()
+{
+    ldx render_path_stack_pointer
+    ldy render_path_stack+0, X
+    sty tmp_byte
+    ldy render_path_stack+1, X
+    tax
+    lda playfield_blue_flags1, X
+    ldx tmp_byte
+    update_tile0_lines()
+}
+
+function path_stack_tile1()
+{
+    ldx render_path_stack_pointer
+    ldy render_path_stack+0, X
+    sty tmp_byte
+    ldy render_path_stack+1, X
+    ldx tmp_byte
+    update_tile1()
+}
+
+function path_stack_tile2()
+{
+    ldx render_path_stack_pointer
+    ldy render_path_stack+0, X
+    sty tmp_byte
+    ldy render_path_stack+1, X
+    ldx tmp_byte
+    update_tile2()
 }
 
 function reset_paths()
@@ -2048,6 +2235,16 @@ byte cf_left_redir_right[] = {pf_flag1.cf_left|pf_flag1.redir_right}
 byte cf_right_redir_left[] = {pf_flag1.cf_right|pf_flag1.redir_left}
 byte cf_top_redir_down[] = {pf_flag1.cf_top|pf_flag1.redir_down}
 byte cf_bot_redir_up[] = {pf_flag1.cf_bot|pf_flag1.redir_up}
+
+pointer render_path_jump_table[8] = {
+    path_blue_left-1,
+    path_blue_right-1,
+    path_blue_up-1,
+    path_blue_down-1,
+    path_red_left-1,
+    path_red_right-1,
+    path_red_up-1,
+    path_red_down-1}
 
 byte bg_palette[4] = {
                 0x20, // 11: white
