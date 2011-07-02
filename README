@@ -1,2 +1,5 @@
-Beginnings of a NES demake of Zachtronics Industries' design puzzle game "SpaceChem" (http://www.spacechemthegame.com/).
-Written using Dave Huesby's Linux port (https://bitbucket.org/wookie/neshla) of Brian Provinciano's NESHLA high level assembler (http://neshla.sourceforge.net/).
+Beginnings of a NES demake of Zachtronics Industries' design puzzle game "SpaceChem".
+
+The real game's web site is http://www.spacechemthegame.com/
+
+This project is currently experimenting with rendering the editor interface.
