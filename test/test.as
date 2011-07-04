@@ -779,6 +779,25 @@ function init_playfield()
     sta playfield_red_flags1[2*8+1]
     lda #pf_flag2.ar_down
     sta playfield_red_flags2[2*8+1]
+
+    //
+    lda #pf_flag1.cf_left|pf_flag1.redir_up
+    sta playfield_blue_flags1[2*8+6]
+
+    lda #pf_flag1.cf_bot|pf_flag1.redir_left
+    sta playfield_blue_flags1[2*8+5]
+    lda #pf_flag2.ar_left
+    sta playfield_blue_flags2[2*8+5]
+
+    lda #pf_flag1.cf_top|pf_flag1.cf_bot|pf_flag1.redir_right
+    sta playfield_red_flags1[2*8+6]
+    lda #pf_flag2.ar_right
+    sta playfield_red_flags2[2*8+6]
+
+    lda #pf_flag1.cf_top|pf_flag1.redir_down
+    sta playfield_red_flags1[2*8+5]
+    lda #pf_flag2.ar_down
+    sta playfield_red_flags2[2*8+5]
 }
 
 /******************************************************************************/
@@ -1023,6 +1042,14 @@ function init_ingame_unique_names()
         sta PPU.IO
         sty PPU.IO
         iny
+        dex
+    } while (not zero)
+
+    vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS+(8*3))
+    lda #%01010101
+    ldx #16
+    do {
+        sta PPU.IO
         dex
     } while (not zero)
 }
@@ -1362,21 +1389,21 @@ byte sp_palette[4] = {
     0x20, // 11: white
     0x16, // 10: red
     0x12, // 01: blue
-    0x10, // 00: light gray
+    0x20, // 00: light gray
 }
 
 byte bg_palette_1[4] = {
-    0x2D, // 11: dark gray (fake bg)
+    0x3D, // 11: dark gray (fake bg)
     0x16, // 10: red
     0x12, // 01: blue
-    0x10, // 00: light gray (true bg)
+    0x20, // 00: light gray (true bg)
 }
 
 byte bg_palette_0[4] = {
-    0x00, // 11: gray (fake bg)
+    0x10, // 11: gray (fake bg)
     0x16, // 10: red
     0x12, // 01: blue
-    0x10, // 00: light gray (true bg)
+    0x20, // 00: light gray (true bg)
 }
 
 #include "tile_update.as"
