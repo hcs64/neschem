@@ -394,7 +394,7 @@ update_tile1_9:
     // 9. red right arrow from current
     ldx TU_playfield_offset
     lda playfield_red_flags2, X
-    and #pf_flag2.ar_down
+    and #pf_flag2.ar_right
     beq update_tile1_10
 
     ldx TU_buf_saved

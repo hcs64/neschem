@@ -762,10 +762,23 @@ function init_playfield()
     sta red_start_dir
     sta blue_start_dir
 
-    //lda #pf_flag1.cf_left
-    //sta playfield_blue_flags1[2*8+2]
-    //lda #pf_flag1.cf_top|pf_flag1.cf_bot|pf_flag1.redir_right
-    //sta playfield_red_flags1[2*8+2]
+    lda #pf_flag1.cf_left|pf_flag1.redir_up
+    sta playfield_blue_flags1[2*8+2]
+
+    lda #pf_flag1.cf_bot|pf_flag1.redir_left
+    sta playfield_blue_flags1[2*8+1]
+    lda #pf_flag2.ar_left
+    sta playfield_blue_flags2[2*8+1]
+
+    lda #pf_flag1.cf_top|pf_flag1.cf_bot|pf_flag1.redir_right
+    sta playfield_red_flags1[2*8+2]
+    lda #pf_flag2.ar_right
+    sta playfield_red_flags2[2*8+2]
+
+    lda #pf_flag1.cf_top|pf_flag1.redir_down
+    sta playfield_red_flags1[2*8+1]
+    lda #pf_flag2.ar_down
+    sta playfield_red_flags2[2*8+1]
 }
 
 /******************************************************************************/
