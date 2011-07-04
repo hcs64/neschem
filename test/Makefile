@@ -1,54 +1,26 @@
-IMAGES= arrowdown.imgbin \
-arrowleft.imgbin \
-arrowright.imgbin \
-arrowup.imgbin \
-cmd_alpha.imgbin \
-cmd_beta.imgbin \
-cmd_bondadd.imgbin \
-cmd_bondsub.imgbin \
-cmd_d.imgbin \
-cmd_ff.imgbin \
-cmd_gd.imgbin \
-cmd_g.imgbin \
-cmd_omega.imgbin \
-cmd_psi.imgbin \
-cmd_start.imgbin \
-cursor_topleft.imgbin \
-cursor_topright_botleft.imgbin \
-cursor_botright.imgbin \
-element_Be.imgbin \
-element_B.imgbin \
-element_C.imgbin \
-element_F.imgbin \
-element_He.imgbin \
-element_H.imgbin \
-element_Li.imgbin \
-element_Ne.imgbin \
-element_N.imgbin \
-element_O.imgbin \
-fringebot.imgbin \
-fringeleft.imgbin \
-fringeright.imgbin \
-fringetop.imgbin \
-linebotleft.imgbin \
-linebotright.imgbin \
-lineh.imgbin \
-linetopleft.imgbin \
-linetopright.imgbin \
-linev.imgbin \
-loopdown.imgbin \
-loopleft.imgbin \
-loopright.imgbin \
-loopup.imgbin
+SOURCES = \
+images.as \
+mem.as \
+test.as \
+tile_fixed.as \
+tile_stage.as \
+tile_update.as
 
-test.nes: test.as tiles.as $(IMAGES)
+EXE = test.nes
+
+IMAGE_PATH = ../images/
+IMG2BIN_PATH = ../img2bin/img2bin.py
+include images.mk
+
+$(EXE): $(SOURCES) $(IMAGES)
 	neshla test.as
 
-tell: test.as tiles.as
+tell: $(SOURCES) $(IMAGES)
 	neshla test.as -tell
 
-%.imgbin: ../images/%.png
-	../img2bin/img2bin.py $< $@
+# build all images, it's just faster than running img2bin more than once
+$(IMAGES): $(patsubst %.imgbin,$(IMAGE_PATH)%.png,$(IMAGES))
+	$(IMG2BIN_PATH) $^ -o $(patsubst $(IMAGE_PATH)%.png,%.imgbin,$^)
 
 clean:
 	rm -f test.nes $(IMAGES) log.txt
