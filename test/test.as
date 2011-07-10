@@ -1045,17 +1045,40 @@ function init_ingame_unique_names()
         dex
     } while (not zero)
 
-    vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS+(8*3))
-    lda #%01010101
-    ldx #16
+    // top half attribute tables
+    vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS+(8*1))
+    ldx #2
     do {
+        lda #%01010101
+        sta PPU.IO
+        sta PPU.IO
+        sta PPU.IO
+        lda #%00010001
+        sta PPU.IO
+        lda #%01000100
+        sta PPU.IO
+        lda #%01010101
+        sta PPU.IO
+        sta PPU.IO
         sta PPU.IO
         dex
-    } while (not zero)
+    } while (not equal)
+    // bottom half attribute tables
+    vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS+(8*3)+3)
+    lda #%01000100
+    sta PPU.IO
+    lda #%00010001
+    sta PPU.IO
+    vram_set_address_i(ATTRIBUTE_TABLE_0_ADDRESS+(8*4)+3)
+    lda #%01000100
+    sta PPU.IO
+    lda #%00010001
+    sta PPU.IO
 }
 
 function refresh_playfield()
 {
+    // TODO: edges
     ldy #0
 
     do {
@@ -1392,15 +1415,48 @@ byte sp_palette[4] = {
     0x20, // 00: light gray
 }
 
+/*
 byte bg_palette_1[4] = {
-    0x3D, // 11: dark gray (fake bg)
+    0x3D, // 11: gray (fake bg)
     0x16, // 10: red
     0x12, // 01: blue
     0x20, // 00: light gray (true bg)
 }
+*/
+/*
+byte bg_palette_1[4] = {
+    0x3D, // 11: gray (fake bg)
+    0x16, // 10: red
+    0x12, // 01: blue
+    0x20, // 00: light gray (true bg)
+}
+*/
+byte bg_palette_1[4] = {
+    0x3D, // 11: gray (fake bg)
+    0x16, // 10: red
+    0x12, // 01: blue
+    0x0D, // 00: light gray (true bg)
+}
 
+/*
 byte bg_palette_0[4] = {
-    0x10, // 11: gray (fake bg)
+    0x2D, // 11: 
+    0x26, // 10: red
+    0x22, // 01: blue
+    0x20, // 00: 
+}
+*/
+
+/*
+byte bg_palette_0[4] = {
+    0x0D, // 11: black (fake bg)
+    0x16, // 10: red
+    0x12, // 01: blue
+    0x20, // 00: light gray (true bg)
+}
+*/
+byte bg_palette_0[4] = {
+    0x3D, // 11: black (fake bg)
     0x16, // 10: red
     0x12, // 01: blue
     0x20, // 00: light gray (true bg)

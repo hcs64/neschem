@@ -2,6 +2,10 @@ IMAGES= arrowdown.imgbin \
 arrowleft.imgbin \
 arrowright.imgbin \
 arrowup.imgbin \
+bonder0.imgbin \
+bonder1.imgbin \
+bonder2.imgbin \
+bonder3.imgbin \
 cmd_alpha.imgbin \
 cmd_beta.imgbin \
 cmd_bondadd.imgbin \
