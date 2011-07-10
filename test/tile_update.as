@@ -634,7 +634,7 @@ function TU_left_edge()
     sta TS_addr+1, Y
 
     ldx TU_buf_saved
-    TS_clear()
+    TS_clear_mono()
 
     // 7. red left arrow from right
     ldx TU_playfield_offset
@@ -658,7 +658,9 @@ update_tile_left_edge_8:
     TS_set_mono(Tile_FringeRight)   // TODO: can be cheaper
 
 update_tile_left_edge_done:
-    // no bg mix needed
+    ldx TU_buf_saved
+    ldy #(Tile_Filled-Tile_BG)+7
+    TS_mix_bg_mono_to_red()
     TS_finalize()
 }
 
@@ -693,7 +695,7 @@ function TU_top_edge()
     sta TS_addr+1, Y
 
     ldx TU_buf_saved
-    TS_clear()
+    TS_clear_mono()
 
     // 7. red up arrow from below
     ldx TU_playfield_offset
@@ -717,7 +719,9 @@ update_tile_top_edge_8:
     TS_set_mono(Tile_FringeBot)  // TODO: can be cheaper
 
 update_tile_top_edge_done:
-    // no bg mix needed
+    ldx TU_buf_saved
+    ldy #(Tile_Filled-Tile_BG)+7
+    TS_mix_bg_mono_to_red()
     TS_finalize()
 }
 

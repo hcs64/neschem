@@ -20,6 +20,8 @@
 #define CURSOR_X_LIMIT_LO_FLAG 0x80
 #define CURSOR_Y_LIMIT_HI_FLAG 1
 #define CURSOR_Y_LIMIT_LO_FLAG 0x80
+#define EMPTY_NAME 0
+#define FILLED_NAME 5
 
 enum pf_flag1 {
     // comefrom
@@ -893,6 +895,10 @@ function init_ingame_fixed_patterns()
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS)
     write_tile_red_bg(Tile_CmdAlpha)
 
+    // 5: filled bg tile
+    vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(16*5))
+    write_tile_white(Tile_Filled)
+
     vram_set_address_i(PATTERN_TABLE_0_ADDRESS+(16*96))
     init_tile_red(Tile_ArrowLeft)
     write_tile_buf()
@@ -906,9 +912,17 @@ function init_ingame_fixed_patterns()
     // 0: empty bg tile
     write_tile_blue_bg(Tile_CmdAlpha)
 
+    // 5: filled bg tile
+    vram_set_address_i(PATTERN_TABLE_1_ADDRESS+(16*5))
+    write_tile_white(Tile_Filled)
+
     vram_set_address_i(PATTERN_TABLE_1_ADDRESS+(16*96))
     init_tile_blue(Tile_ArrowRight)
     write_tile_buf()
+
+    // 75: bottom right corner
+    vram_set_address_i(PATTERN_TABLE_1_ADDRESS+(16*75))
+    write_tile_white(Tile_Grid_Edge_Bot_Right)
 
     // 76: bottom border
     vram_set_address_i(PATTERN_TABLE_1_ADDRESS+(16*76))
@@ -974,7 +988,6 @@ function init_ingame_unique_names()
 
     // left border, (5,4)-(5,10) (inc 2) are numbered 88-91
     // left border, (5,12)-(5,18) (inc 2) are numbered 88-91
-
     vram_set_address_i(NAME_TABLE_0_ADDRESS+5+(4*NAMETABLE_WIDTH))
     ldx #2
     do {
@@ -983,7 +996,7 @@ function init_ingame_unique_names()
 
         ldx #4
         ldy #88
-        lda #0
+        lda #FILLED_NAME
         do {
             sty PPU.IO
             sta PPU.IO
@@ -1022,10 +1035,15 @@ function init_ingame_unique_names()
     ppu_ctl0_clear(CR_ADDRINC32)
 
     // top border, (6,3)-(24,3) (inc 2) are numbered 78-87
-    vram_set_address_i(NAME_TABLE_0_ADDRESS+6+(3*NAMETABLE_WIDTH))
+    vram_set_address_i(NAME_TABLE_0_ADDRESS+5+(3*NAMETABLE_WIDTH))
+
+    // upper left corner
+    lda #FILLED_NAME
+    sta PPU.IO
+
     ldx #10
     ldy #78
-    lda #0
+    lda #FILLED_NAME
     do {
         sty PPU.IO
         sta PPU.IO
@@ -1033,8 +1051,17 @@ function init_ingame_unique_names()
         dex
     } while (not zero)
 
+    // upper right corner
+    lda #FILLED_NAME
+    sta PPU.IO
+
     // bottom border, (7,20)-(26,20) (inc 2) are numbered 78-87
-    vram_set_address_i(NAME_TABLE_0_ADDRESS+6+(20*NAMETABLE_WIDTH))
+    vram_set_address_i(NAME_TABLE_0_ADDRESS+5+(20*NAMETABLE_WIDTH))
+
+    // lower left corner
+    lda #FILLED_NAME
+    sta PPU.IO
+
     ldx #10
     ldy #78
     lda #76 // plain bottom grid
@@ -1044,15 +1071,42 @@ function init_ingame_unique_names()
         iny
         dex
     } while (not zero)
+
+    // lower right corner
+    lda #75
+    sta PPU.IO
 }
 
 function refresh_playfield()
 {
-    // TODO: edges
-    ldy #0
-
+    // top edge
+    ldx #0
     do {
+        txa
+        pha
+        ldy #0
+        refresh_calc_cell_offset()
+        TU_top_edge()
+
+        pla
+        tax
+        inx
+        cpx #10
+    } while (not equal)
+
+    ldy #0
+    do {
+
+        tya
+        pha
+        
+        TU_left_edge()
+
+        pla
+        tay
+
         ldx #0
+
         do
         {
             txa
@@ -1073,10 +1127,35 @@ function refresh_playfield()
             inx
             cpx #PLAYFIELD_WIDTH
         } while (not equal)
+
+        tya
+        pha
+
+        clc
+        adc #(PLAYFIELD_WIDTH-1)*PLAYFIELD_HEIGHT
+        TU_right_edge()
+
+        pla
+        tay
+
         iny
         cpy #PLAYFIELD_HEIGHT
     } while (not equal)
 
+    // bottom edge
+    ldx #0
+    do {
+        txa
+        pha
+        ldy #PLAYFIELD_HEIGHT-1
+        refresh_calc_cell_offset()
+        TU_bottom_edge()
+
+        pla
+        tax
+        inx
+        cpx #10
+    } while (not equal)
     TS_flush()
 }
 

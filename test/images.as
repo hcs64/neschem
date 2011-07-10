@@ -102,3 +102,7 @@ Tile_Grid_Edge_Bot:
 #incbin "grid_edge_bot.imgbin"
 Tile_Grid_Edge_Right:
 #incbin "grid_edge_right.imgbin"
+Tile_Grid_Edge_Bot_Right:
+#incbin "grid_edge_bot_right.imgbin"
+
+byte Tile_Filled[8] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}

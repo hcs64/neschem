@@ -50,6 +50,7 @@ grid2.imgbin \
 grid3.imgbin \
 grid_edge_bot.imgbin \
 grid_edge_right.imgbin \
+grid_edge_bot_right.imgbin \
 sensor0.imgbin \
 sensor1.imgbin \
 sensor2.imgbin \
